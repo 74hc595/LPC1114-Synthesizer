@@ -168,3 +168,17 @@ void cpuReset (void)
   // Wait for reset
   while(1);
 }
+
+/**************************************************************************/
+/*! 
+    @brief Enables main clock output on PIO0_1.
+*/
+/**************************************************************************/
+void cpuEnableClkout(void)
+{
+  SCB_CLKOUTCLKSEL = 3;
+  SCB_CLKOUTCLKDIV = SCB_CLKOUTCLKDIV_DIV1;
+  SCB_CLKOUTCLKUEN = 0;
+  SCB_CLKOUTCLKUEN = 1;
+  IOCON_PIO0_1 = IOCON_PIO0_1_FUNC_CLKOUT;
+}
