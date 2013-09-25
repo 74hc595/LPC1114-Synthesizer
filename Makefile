@@ -32,7 +32,7 @@ DEBUGBUILD = FALSE
 # Library files 
 ##########################################################################
 VPATH += lpc1xxx
-OBJS += cpu.o gpio.o
+OBJS += cpu.o gpio.o systick.o
 #VPATH += core core/adc core/cmd core/cpu core/gpio core/i2c core/pmu
 #VPATH += core/ssp core/systick core/timer16 core/timer32 core/uart
 #VPATH += core/libc core/wdt core/pwm core/iap

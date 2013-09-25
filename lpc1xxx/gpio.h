@@ -120,7 +120,9 @@ void      	gpioSetPullup (volatile uint32_t *ioconRegister, gpioPullupMode_t mod
  * Changes the value of the numbered pin.
  * gpio should be "GPIO0", "GPIO1", "GPIO2", or "GPIO3"
  * */
-#define gpioSetPinHigh(gpio, pin) *((volatile uint32_t *)(GPIO_ ## gpio ## _BASE + (1 << ((pin)+2)))) = 0xFFF;
-#define gpioSetPinLow(gpio, pin) *((volatile uint32_t *)(GPIO_ ## gpio ## _BASE + (1 << ((pin)+2)))) = 0;
+#define gpioPin(gpio, pin) *((volatile uint32_t *)(GPIO_ ## gpio ## _BASE + (1 << ((pin)+2))))
+#define gpioSetPinHigh(gpio, pin) gpioPin(gpio, pin) = 0xFFF;
+#define gpioSetPinLow(gpio, pin) gpioPin(gpio, pin) = 0;
+
 
 #endif
