@@ -10,7 +10,8 @@ extern volatile uint8_t *waveform_ptr;
 
 extern volatile uint8_t waveform[256];
 extern volatile uint8_t *waveform_ptr;
-volatile uint8_t *waveform_end;
+
+uint8_t waveform_copy[256];
 
 /**
  * Starts the ADC (channel 0 only)
@@ -70,16 +71,69 @@ uint32_t adcReadChannel(uint8_t channel)
 }
 
 
+/**
+ * Set up SPI master operation (output only) in mode 0.
+ */
+void spiInit(void)
+{
+  /* Reset SSP */
+  SCB_PRESETCTRL &= ~SCB_PRESETCTRL_SSP0_MASK;
+  SCB_PRESETCTRL |= SCB_PRESETCTRL_SSP0_RESETDISABLED;
+
+  /* Enable AHB clock to the SSP domain. */
+  SCB_SYSAHBCLKCTRL |= (SCB_SYSAHBCLKCTRL_SSP0);
+
+  /* Set P0.9 to SSP MOSI */
+  IOCON_PIO0_9 &= ~IOCON_PIO0_9_FUNC_MASK;
+  IOCON_PIO0_9 |= IOCON_PIO0_9_FUNC_MOSI0;
+
+  /* Set P0.6 to SSP SCK */
+  IOCON_SCKLOC = IOCON_SCKLOC_SCKPIN_PIO0_6;
+  IOCON_PIO0_6 = IOCON_PIO0_6_FUNC_SCK;
+
+  /* Set P0.2 to SSP SSEL */
+  IOCON_PIO0_2 = IOCON_PIO0_2_FUNC_SSEL|IOCON_PIO0_3_MODE_INACTIVE;
+
+  /* 16-bit transfers, mode 0, 1 bit per prescaler clock cycle */
+  SSP_SSP0CR0 = SSP_SSP0CR0_DSS_16BIT |
+                SSP_SSP0CR0_FRF_SPI |
+                SSP_SSP0CR0_CPOL_LOW |
+                SSP_SSP0CR0_CPHA_FIRST;
+
+  /* 1/4 clock prescaler */
+  SSP_SSP0CPSR = SSP_SSP0CPSR_CPSDVSR_DIV4;
+
+  /* SPI master enabled */
+  SSP_SSP0CR1 = SSP_SSP0CR1_LBM_NORMAL |
+                SSP_SSP0CR1_SSE_ENABLED |
+                SSP_SSP0CR1_MS_MASTER;
+}
+
+
 int main(void)
 {
+  /* set r12 to the DAC control bits we need (0x3000)
+   * no one uses r12 so we're ok here */
+  asm volatile(
+      "mov r0, #3\n"
+      "lsl r0, #12\n"
+      "mov r12, r0"
+  );
+
   cpuPllSetup(CPU_MULTIPLIER_4);
   cpuEnableClkout();
   adcInit();
+  spiInit();
+
+  // custom waveform
+  int i;
+  for (i = 0; i < 256; i++) {
+    waveform[i] = i;
+  }
 
   waveform_ptr = waveform;
-  waveform_end = waveform+256;
 
-  GPIO_GPIO1DIR |= (1 << 5)|(1 << 8);
+  GPIO_GPIO1DIR |= (1 << 8);
   systickInit(1704);
 
   while (1) {
