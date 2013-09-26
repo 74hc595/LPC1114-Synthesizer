@@ -2,33 +2,31 @@
 #include "lpc1xxx/gpio.h"
 #include "lpc1xxx/systick.h"
 
-static const uint8_t waveform[64] = {
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-};
-static volatile uint8_t waveidx = 0;
+#if 0
+extern volatile uint8_t *waveform;
+extern volatile uint8_t *waveform_end;
+extern volatile uint8_t *waveform_ptr;
+#endif
 
-
-void SysTick_Handler(void)
-{
-  gpioPin(GPIO1,8) = (waveform[waveidx++] << 8);
-  waveidx &= 63;
-}
-
+extern volatile uint8_t waveform[256];
+extern volatile uint8_t *waveform_ptr;
+volatile uint8_t *waveform_end;
 
 int main(void)
 {
-  volatile uint32_t count, count_max = 500000;
-
   cpuPllSetup(CPU_MULTIPLIER_4);
+  cpuEnableClkout();
 
-  GPIO_GPIO1DIR |= (1 << 8);
+  waveform_ptr = waveform;
+  waveform_end = waveform+256;
+
+  GPIO_GPIO1DIR |= (1 << 5)|(1 << 8);
   systickInit(1704);
 
   while (1) {
+//    gpioPin(GPIO1, 8) = (SYSTICK_STCURR & 256) ? 0xFFF : 0;
   }
 
   return 0;
 }
+

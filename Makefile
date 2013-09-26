@@ -1,5 +1,5 @@
 OUTFILE = wave
-OBJS = main.o
+OBJS = kernel.o main.o
 
 ##########################################################################
 # User configuration and firmware specific object files	
