@@ -16,10 +16,13 @@ extern volatile oscillator_t oscillators[4];
  * these are pointers to the immediate volume values in
  * the interrupt handler in RAM.
  */
-extern volatile uint8_t *osc0v;
-extern volatile uint8_t *osc1v;
-extern volatile uint8_t *osc2v;
-extern volatile uint8_t *osc3v;
+extern volatile uint8_t osc0v;
+extern volatile uint8_t osc1v;
+extern volatile uint8_t osc2v;
+extern volatile uint8_t osc3v;
+
+static void set_voice_volume(volatile uint8_t *volptr, uint8_t val);
+
 
 /**
  * Starts the ADC (channel 0 only)
@@ -124,16 +127,24 @@ int main(void)
   cpuEnableClkout();
   adcInit();
   spiInit();
+  GPIO_GPIO1DIR |= (1<<8)|(1<<9);
+  gpioSetPinLow(GPIO1, 9);
 
   oscillators[0].freq = 5000000;
   oscillators[1].freq = 5005000;
   oscillators[2].freq = 2505000;
   oscillators[2].freq = 2510000;
 
-  GPIO_GPIO1DIR |= (1 << 8);
   systickInit(200);
+  
 
   while (1) {
+    osc0v-=2;
+    osc1v-=2;
+    osc2v--;
+    osc3v--;
+    volatile int i = 0;
+    for (i = 0; i < 1000; i++) {}
   //  uint32_t val = adcReadChannel(0);
   }
 

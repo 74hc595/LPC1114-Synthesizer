@@ -18,7 +18,7 @@ osc0v:	mov	r1, #0xFF		@ volume
 do_osc1:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
-	stmia	r0, {r2}
+	stmia	r0!, {r2}
 	asr	r2, #16
 osc1v:	mov	r1, #0xFF
 	mul	r2, r1
@@ -27,7 +27,7 @@ osc1v:	mov	r1, #0xFF
 do_osc2:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
-	stmia	r0, {r2}
+	stmia	r0!, {r2}
 	asr	r2, #16
 osc2v:	mov	r1, #0xFF
 	mul	r2, r1
@@ -36,7 +36,7 @@ osc2v:	mov	r1, #0xFF
 do_osc3:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
-	stmia	r0, {r2}
+	stmia	r0!, {r2}
 	asr	r2, #16
 osc3v:	mov	r1, #0xFF
 	mul	r2, r1
