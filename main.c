@@ -2,16 +2,24 @@
 #include "lpc1xxx/gpio.h"
 #include "lpc1xxx/systick.h"
 
-#if 0
-extern volatile uint8_t *waveform;
-extern volatile uint8_t *waveform_end;
-extern volatile uint8_t *waveform_ptr;
-#endif
+typedef struct
+{
+  uint32_t *phaseptr;
+  uint32_t freq;
+  uint32_t phase;
+} oscillator_t;
 
-extern volatile uint8_t waveform[256];
-extern volatile uint8_t *waveform_ptr;
+extern volatile oscillator_t oscillators[4];
 
-uint8_t waveform_copy[256];
+/**
+ * Volume is changed via self-modifying code;
+ * these are pointers to the immediate volume values in
+ * the interrupt handler in RAM.
+ */
+extern volatile uint8_t *osc0v;
+extern volatile uint8_t *osc1v;
+extern volatile uint8_t *osc2v;
+extern volatile uint8_t *osc3v;
 
 /**
  * Starts the ADC (channel 0 only)
@@ -112,34 +120,21 @@ void spiInit(void)
 
 int main(void)
 {
-  /* set r12 to the DAC control bits we need (0x3000)
-   * no one uses r12 so we're ok here */
-  asm volatile(
-      "mov r0, #3\n"
-      "lsl r0, #12\n"
-      "mov r12, r0"
-  );
-
   cpuPllSetup(CPU_MULTIPLIER_4);
   cpuEnableClkout();
   adcInit();
   spiInit();
 
-  // custom waveform
-  int i;
-  for (i = 0; i < 256; i++) {
-    waveform[i] = i;
-  }
-
-  waveform_ptr = waveform;
+  oscillators[0].freq = 5000000;
+  oscillators[1].freq = 5005000;
+  oscillators[2].freq = 2505000;
+  oscillators[2].freq = 2510000;
 
   GPIO_GPIO1DIR |= (1 << 8);
-  systickInit(1704);
+  systickInit(200);
 
   while (1) {
-    uint32_t val = adcReadChannel(0);
-    val <<= 2;
-    SYSTICK_STRELOAD = val + 60;
+  //  uint32_t val = adcReadChannel(0);
   }
 
   return 0;
