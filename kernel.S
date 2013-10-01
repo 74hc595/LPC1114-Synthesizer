@@ -6,14 +6,25 @@ _SysTick_Handler:
 	mov	r3, #0			@ sample accumulator
 	adr	r0, osc0		@ point to first oscillator
 
+
+@do_osc0:
+@	ldmia	r0, {r0, r1, r2}	@ get oscillator state
+@	add	r2, r1			@ add frequency to phase
+@	stmia	r0!, {r2}		@ store new phase
+@	asr	r2, #16			@ down scale
+@osc0v:	mov	r1, #0xFF		@ volume
+@	mul	r2, r1			@ scale by volume
+@	add	r3, r2			@ add sample to accumulator
+
 do_osc0:
-	ldmia	r0, {r0, r1, r2}	@ get oscillator state
-	add	r2, r1			@ add frequency to phase
-	stmia	r0!, {r2}		@ store new phase
-	asr	r2, #16			@ down scale
-osc0v:	mov	r1, #0xFF		@ volume
-	mul	r2, r1			@ scale by volume
-	add	r3, r2			@ add sample to accumulator
+	ldmia	r0, {r0, r1, r2}
+	add	r2, r1
+	stmia	r0!, {r2}
+	asr	r2, #16
+osc0v:	mov	r1, #0xFF
+	lsl	r1, #16
+	eor	r2, r1
+	add	r3, r2
 
 do_osc1:
 	ldmia	r0, {r0, r1, r2}
@@ -21,14 +32,15 @@ do_osc1:
 	stmia	r0!, {r2}
 	asr	r2, #16
 osc1v:	mov	r1, #0xFF
-	mul	r2, r1
+	lsl	r1, #16
+	eor	r2, r1
 	add	r3, r2
 
 do_osc2:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
 	stmia	r0!, {r2}
-	asr	r2, #16
+	asr	r2, #15
 osc2v:	mov	r1, #0xFF
 	mul	r2, r1
 	add	r3, r2
@@ -37,7 +49,7 @@ do_osc3:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
 	stmia	r0!, {r2}
-	asr	r2, #16
+	asr	r2, #15
 osc3v:	mov	r1, #0xFF
 	mul	r2, r1
 	add	r3, r2

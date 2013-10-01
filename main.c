@@ -130,21 +130,26 @@ int main(void)
   GPIO_GPIO1DIR |= (1<<8)|(1<<9);
   gpioSetPinLow(GPIO1, 9);
 
-  oscillators[0].freq = 5000000;
-  oscillators[1].freq = 5005000;
-  oscillators[2].freq = 2505000;
-  oscillators[2].freq = 2510000;
+//  osc0v = 0;
+//  osc1v = 0;
+//  osc2v = 0;
+//  osc3v = 0;
+
+  //oscillators[0].freq = 5000000;
+  //oscillators[1].freq = 5000000;
+  //oscillators[2].freq = 5005000;
+  //oscillators[3].freq = 5005000;
 
   systickInit(200);
   
 
   while (1) {
-    osc0v-=2;
-    osc1v-=2;
-    osc2v--;
-    osc3v--;
+    //osc0v--;
+    //osc1v--;
+    //osc2v--;
+    //osc3v--;
     volatile int i = 0;
-    for (i = 0; i < 1000; i++) {}
+    for (i = 0; i < 1500; i++) {}
   //  uint32_t val = adcReadChannel(0);
   }
 
