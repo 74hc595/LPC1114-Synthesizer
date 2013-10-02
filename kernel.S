@@ -6,53 +6,29 @@ _SysTick_Handler:
 	mov	r3, #0			@ sample accumulator
 	adr	r0, osc0		@ point to first oscillator
 
-
-@do_osc0:
-@	ldmia	r0, {r0, r1, r2}	@ get oscillator state
-@	add	r2, r1			@ add frequency to phase
-@	stmia	r0!, {r2}		@ store new phase
-@	asr	r2, #16			@ down scale
-@osc0v:	mov	r1, #0xFF		@ volume
-@	mul	r2, r1			@ scale by volume
-@	add	r3, r2			@ add sample to accumulator
-
-do_osc0:
+osc_update_base:
+@ Update all oscillators
+@ Self-modifying code is used to change the waveform, volume, and duty cycle
+.rept 4
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
 	stmia	r0!, {r2}
-	asr	r2, #16
-osc0v:	mov	r1, #0xFF
+	mov	r1, #0			@ volume
+@ ----- begin modifiable code
+	asr	r2, #23
+	sub	r2, #0			@ duty cycle
 	lsl	r1, #16
 	eor	r2, r1
+@ ----- end modifiable code
 	add	r3, r2
+.endr
 
-do_osc1:
-	ldmia	r0, {r0, r1, r2}
-	add	r2, r1
-	stmia	r0!, {r2}
-	asr	r2, #16
-osc1v:	mov	r1, #0xFF
-	lsl	r1, #16
-	eor	r2, r1
-	add	r3, r2
-
-do_osc2:
-	ldmia	r0, {r0, r1, r2}
-	add	r2, r1
-	stmia	r0!, {r2}
-	asr	r2, #15
-osc2v:	mov	r1, #0xFF
-	mul	r2, r1
-	add	r3, r2
-
-do_osc3:
-	ldmia	r0, {r0, r1, r2}
-	add	r2, r1
-	stmia	r0!, {r2}
-	asr	r2, #15
-osc3v:	mov	r1, #0xFF
-	mul	r2, r1
-	add	r3, r2
+@ When sawtooth wave is selected, the "modifiable code" sections
+@ will be replaced with the following instructions:
+@	asr	r2, #15
+@	mul	r2, r1
+@	nop
+@	nop
 
 dacout:
 	ldmia	r0, {r0, r1, r2}
@@ -93,10 +69,7 @@ test:
 	.word	0x000007ff
 
 .global oscillators
-.global osc0v
-.global osc1v
-.global	osc2v
-.global osc3v
+.global osc_update_base
 
 @ make sure the thumb bit is set in the vector table
 .global SysTick_Handler

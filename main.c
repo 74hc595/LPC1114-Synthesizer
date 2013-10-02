@@ -2,26 +2,42 @@
 #include "lpc1xxx/gpio.h"
 #include "lpc1xxx/systick.h"
 
+/**
+ * Oscillator state.
+ */
 typedef struct
 {
   uint32_t *phaseptr;
   uint32_t freq;
   uint32_t phase;
-} oscillator_t;
+} oscillator_state_t;
 
-extern volatile oscillator_t oscillators[4];
 
 /**
- * Volume is changed via self-modifying code;
- * these are pointers to the immediate volume values in
- * the interrupt handler in RAM.
+ * This structure mirrors the oscillator-updating code in the SysTick handler
+ * and allows it to be modified in a structured manner.
+ * The __pad members should not be touched!
  */
-extern volatile uint8_t osc0v;
-extern volatile uint8_t osc1v;
-extern volatile uint8_t osc2v;
-extern volatile uint8_t osc3v;
+typedef struct
+{
+  uint16_t __pad1[3];
+  uint8_t volume;
+  uint8_t __pad2;
+  union {
+    uint16_t waveform_code[4];
+    struct {
+      uint16_t __pad3;
+      uint8_t duty;
+      uint8_t __pad4;
+      uint16_t __pad5[2];
+    };
+  };
+  uint16_t __pad6;
+} oscillator_control_t;
 
-static void set_voice_volume(volatile uint8_t *volptr, uint8_t val);
+
+extern volatile oscillator_state_t oscillators[4];
+extern volatile oscillator_control_t osc_update_base[4];
 
 
 /**
@@ -121,6 +137,24 @@ void spiInit(void)
 }
 
 
+void oscillator_set_sawtooth(int oscnum)
+{
+  osc_update_base[oscnum].waveform_code[0] = 0x13d2; /* asr r2, #15 */
+  osc_update_base[oscnum].waveform_code[1] = 0x434a; /* mul r2, r1 */ 
+  osc_update_base[oscnum].waveform_code[2] = 0x46c0; /* nop */
+  osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */
+}
+
+
+void oscillator_set_pulse(int oscnum)
+{
+  osc_update_base[oscnum].waveform_code[0] = 0x15d2; /* asr r2, #23 */
+  osc_update_base[oscnum].waveform_code[1] = 0x3a00; /* sub r2, #<duty> */ 
+  osc_update_base[oscnum].waveform_code[2] = 0x0409; /* lsl r1, #16 */
+  osc_update_base[oscnum].waveform_code[3] = 0x404a; /* eor r2, r1 */
+}
+
+
 int main(void)
 {
   cpuPllSetup(CPU_MULTIPLIER_4);
@@ -130,13 +164,13 @@ int main(void)
   GPIO_GPIO1DIR |= (1<<8)|(1<<9);
   gpioSetPinLow(GPIO1, 9);
 
-//  osc0v = 0;
-//  osc1v = 0;
-//  osc2v = 0;
-//  osc3v = 0;
+  osc_update_base[0].volume = 255;
+  osc_update_base[1].volume = 255;
+  oscillator_set_sawtooth(0);
+  oscillator_set_sawtooth(1);
 
-  //oscillators[0].freq = 5000000;
-  //oscillators[1].freq = 5000000;
+  oscillators[0].freq = 5000000;
+  oscillators[1].freq = 5005000;
   //oscillators[2].freq = 5005000;
   //oscillators[3].freq = 5005000;
 
@@ -144,15 +178,17 @@ int main(void)
   
 
   while (1) {
-    //osc0v--;
-    //osc1v--;
-    //osc2v--;
-    //osc3v--;
     volatile int i = 0;
-    for (i = 0; i < 1500; i++) {}
+    for (i = 0; i < 5000; i++) {}
   //  uint32_t val = adcReadChannel(0);
   }
 
   return 0;
 }
 
+
+void HardFault_Handler(void)
+{
+  gpioSetPinHigh(GPIO1, 9);
+  while (1) {}
+}
