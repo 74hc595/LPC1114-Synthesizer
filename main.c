@@ -38,10 +38,11 @@ typedef struct
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
-
+extern volatile uint32_t filter_cutoff; /* 12-bit unsigned */
+extern volatile uint32_t filter_q; /* 12-bit unsigned */
 
 /**
- * Starts the ADC (channel 0 only)
+ * Starts the ADC (channels 0 and 1only)
  */
 void adcInit(void)
 {
@@ -52,11 +53,10 @@ void adcInit(void)
   SCB_SYSAHBCLKCTRL |= (SCB_SYSAHBCLKCTRL_ADC);
 
   /* Set AD0 to analog input */
-  IOCON_JTAG_TDI_PIO0_11 &= ~(IOCON_JTAG_TDI_PIO0_11_ADMODE_MASK |
-                              IOCON_JTAG_TDI_PIO0_11_FUNC_MASK |
-                              IOCON_JTAG_TDI_PIO0_11_MODE_MASK);
-  IOCON_JTAG_TDI_PIO0_11 |=  (IOCON_JTAG_TDI_PIO0_11_FUNC_AD0 &
-                              IOCON_JTAG_TDI_PIO0_11_ADMODE_ANALOG);
+  IOCON_JTAG_TDI_PIO0_11 = IOCON_JTAG_TDI_PIO0_11_FUNC_AD0;
+
+  /* Set AD1 to analog input */
+  IOCON_JTAG_TMS_PIO1_0 = IOCON_JTAG_TMS_PIO1_0_FUNC_AD1;
 
   /* Set channel and clock divider but don't start */
   ADC_AD0CR = (ADC_AD0CR_SEL_AD0 |      /* SEL=1,select channel 0 on ADC0 */
@@ -82,7 +82,7 @@ uint32_t adcReadChannel(uint8_t channel)
 
   uint32_t regVal = 0;
   do {
-    regVal = *(pREG32(ADC_AD0DR0));
+    regVal = *(pREG32(ADC_AD0DR0+(channel*4)));
   } while ((regVal & ADC_DR_DONE) == 0);
 
   /* stop ADC */
@@ -165,12 +165,12 @@ int main(void)
   gpioSetPinLow(GPIO1, 9);
 
   osc_update_base[0].volume = 255;
-  osc_update_base[1].volume = 255;
-  oscillator_set_sawtooth(0);
-  oscillator_set_sawtooth(1);
+//  osc_update_base[1].volume = 255;
+//  oscillator_set_sawtooth(0);
+//  oscillator_set_sawtooth(1);
 
   oscillators[0].freq = 5000000;
-  oscillators[1].freq = 5005000;
+//  oscillators[1].freq = 5005000;
   //oscillators[2].freq = 5005000;
   //oscillators[3].freq = 5005000;
 
@@ -179,8 +179,11 @@ int main(void)
 
   while (1) {
     volatile int i = 0;
-    for (i = 0; i < 5000; i++) {}
-  //  uint32_t val = adcReadChannel(0);
+//    for (i = 0; i < 5000; i++) {}
+    uint32_t val = adcReadChannel(0);
+    filter_cutoff = val >> 2;
+    val = adcReadChannel(1);
+    filter_q = val << 2;
   }
 
   return 0;
