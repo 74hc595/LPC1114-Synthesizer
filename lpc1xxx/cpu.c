@@ -70,7 +70,7 @@
     oscillator or an external crystal).
 */
 /**************************************************************************/
-void cpuPllSetup (cpuMultiplier_t multiplier)
+void cpu_pll_setup(cpu_multiplier_t multiplier)
 {
   uint32_t i;
 
@@ -145,36 +145,13 @@ void cpuPllSetup (cpuMultiplier_t multiplier)
   SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_IOCON;
 }
 
-/**************************************************************************/
-/*! 
-    @brief Get's the CPU Device ID
-*/
-/**************************************************************************/
-uint32_t cpuGetDeviceID (void)
-{
-  return SCB_DEVICEID;
-}
-
-/**************************************************************************/
-/*! 
-    @brief Resets the device using the AIRCR register
-*/
-/**************************************************************************/
-void cpuReset (void)
-{
-  // Reset device
-  SCB_AIRCR = SCB_AIRCR_VECTKEY_VALUE | SCB_AIRCR_SYSRESETREQ; // 0x05FA0004
-
-  // Wait for reset
-  while(1);
-}
 
 /**************************************************************************/
 /*! 
     @brief Enables main clock output on PIO0_1.
 */
 /**************************************************************************/
-void cpuEnableClkout(void)
+void cpu_enable_clkout(void)
 {
   SCB_CLKOUTCLKSEL = 3;
   SCB_CLKOUTCLKDIV = SCB_CLKOUTCLKDIV_DIV1;

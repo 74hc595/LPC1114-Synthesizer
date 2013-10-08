@@ -31,7 +31,19 @@ osc_update_base:
 @	nop
 @	nop
 
+@ craziness:
+@	asr	r2, #23
+@	mul	r2, r2
+@	lsl	r2, #1
+@	mul	r2, r1
 
+@ lo-fi sawtooth:
+	asr	r2, #30
+	lsl	r2, #15
+	mul	r2, r1
+	nop
+
+#if 0
 @ Chamberlin state-variable filter
 @ L = D2 + F1*D1
 @ H = I - L - Q1*D1
@@ -77,12 +89,13 @@ filter:
 @ choose an output
 	mov	r3, r1			@ modifiable
 	lsr	r3, #8			@ shift down to 12-bit signed for DAC output
+#endif
 
 @ Send sample in r3 to DAC
 dacout:
 	adr	r0, output_port
 	ldmia	r0, {r0, r1, r2}
-	@lsr	r3, #15			@ shift down to 12 bits for DAC
+	lsr	r3, #15			@ shift down to 12 bits for DAC
 	add	r3, r1			@ convert 2's complement to offset
 	orr	r3, r2			@ set /GA and /SHDN bits
 	strh	r3, [r0]		@ send to DAC

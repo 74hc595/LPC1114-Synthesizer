@@ -41,6 +41,6 @@
 
 #include "lpc111x.h"
 
-void systickInit(uint32_t ticks);
+void systick_init(uint32_t ticks);
 
 #endif

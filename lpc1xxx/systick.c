@@ -81,7 +81,7 @@
                 more appropriate.
 */
 /**************************************************************************/
-void systickInit (uint32_t ticks)
+void systick_init(uint32_t ticks)
 {
   // Set reload register
   SYSTICK_STRELOAD  = (ticks & SYSTICK_STRELOAD_MASK) - 1;

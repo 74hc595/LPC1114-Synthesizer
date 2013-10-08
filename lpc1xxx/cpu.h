@@ -51,11 +51,9 @@ typedef enum
   CPU_MULTIPLIER_3,
   CPU_MULTIPLIER_4
 }
-cpuMultiplier_t;
+cpu_multiplier_t;
 
-void cpuPllSetup (cpuMultiplier_t multiplier);
-uint32_t cpuGetDeviceID (void);
-void cpuReset (void);
-void cpuEnableClkout(void);
+void cpu_pll_setup(cpu_multiplier_t multiplier);
+void cpu_enable_clkout(void);
 
 #endif
