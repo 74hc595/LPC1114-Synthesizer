@@ -16,15 +16,29 @@ void adc_init(void);
 
 
 /**
- * Read a 10-bit value from the specified ADC channel.
+ * Reads a 10-bit value from the specified ADC channel.
  * Blocks until conversion has finished.
  */
 uint32_t adc_read_channel(uint8_t channel);
 
 
 /**
- * Set up SPI master operation (output only) in mode 0.
+ * Sets up SPI master operation (output only) in mode 0.
  */
 void spi_init(void);
+
+
+/**
+ * Sets up the UART at the specified baud rate, 8 data bits,
+ * no parity, 1 stop bit, and enables the receive interrupt.
+ * "divisor" should be the output of the BAUD() macro.
+ */
+void uart_rx_init(uint16_t divisor);
+
+
+/**
+ * Computes the divisor for a given baud rate and CPU frequency.
+ */
+#define BAUD(rate, cpufreq) (cpufreq/(16*(rate)))
 
 #endif

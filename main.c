@@ -57,6 +57,8 @@ int main(void)
   sound_init();
 
   systick_init(200);
+
+  uart_rx_init(BAUD(31250, 48000000));
   
   while (1) {
     /* read the knobs */
@@ -88,6 +90,22 @@ int main(void)
   }
 
   return 0;
+}
+
+
+static volatile uint8_t t = 0;
+void UART_IRQHandler(void)
+{
+  /* get the received byte and clear the interrupt */
+  uint8_t byte = UART_U0RBR;
+
+  /* ignore active sense */
+  if (byte == 0xFE) {
+    return;
+  }
+
+  t++;
+  gpio_pin(GPIO1, 9) = (t & 1) ? 0xFFF : 0;
 }
 
 

@@ -98,3 +98,37 @@ void spi_init(void)
                 SSP_SSP0CR1_SSE_ENABLED |
                 SSP_SSP0CR1_MS_MASTER;
 }
+
+
+void uart_rx_init(uint16_t divisor)
+{
+  /* Set 1.6 UART RXD */
+  IOCON_PIO1_6 &= ~IOCON_PIO1_6_FUNC_MASK;
+  IOCON_PIO1_6 |= IOCON_PIO1_6_FUNC_UART_RXD;
+
+  /* Set 1.7 UART TXD */
+  IOCON_PIO1_7 &= ~IOCON_PIO1_7_FUNC_MASK;	
+  IOCON_PIO1_7 |= IOCON_PIO1_7_FUNC_UART_TXD;
+
+  /* Enable UART clock */
+  SCB_SYSAHBCLKCTRL |= (SCB_SYSAHBCLKCTRL_UART);
+  SCB_UARTCLKDIV = SCB_UARTCLKDIV_DIV1;     /* divided by 1 */
+
+  /* 8 bits, no parity, 1 stop bit, prepare to set baud rate */
+  UART_U0LCR = UART_U0LCR_Word_Length_Select_8Chars |
+               UART_U0LCR_Stop_Bit_Select_1Bits |
+               UART_U0LCR_Parity_Disabled |
+               UART_U0LCR_Divisor_Latch_Access_Enabled;
+
+  /* Set baud rate */
+  UART_U0DLM = divisor >> 8;
+  UART_U0DLL = divisor & 0xFF;
+  UART_U0LCR &= (~UART_U0LCR_Divisor_Latch_Access_MASK);
+
+  /* Enable RX FIFO */
+  UART_U0FCR = UART_U0FCR_FIFO_Enabled | UART_U0FCR_Rx_FIFO_Reset;
+
+  /* Enable the UART interrupt */
+  NVIC_EnableIRQ(UART_IRQn);
+  UART_U0IER = UART_U0IER_RBR_Interrupt_Enabled;
+}
