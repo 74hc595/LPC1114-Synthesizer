@@ -1,7 +1,5 @@
 #include "sound.h"
 
-#define NUM_OSCILLATORS 4
-
 extern uint32_t notetable[128];
 
 /**
@@ -148,13 +146,14 @@ void sound_set_lofi_sawtooth(uint8_t oscmask)
 
 
 static uint16_t current_note = 0;
+static int16_t tuning_amounts[NUM_OSCILLATORS];
 static int16_t detune_amounts[NUM_OSCILLATORS];
 
 void update_frequencies()
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    uint16_t note = current_note + detune_amounts[i];
+    uint16_t note = current_note + tuning_amounts[i];// + detune_amounts[i];
     uint8_t basenote = note >> 9;
     uint32_t fracnote = note & ((1 << 9)-1);
     uint32_t basefreq = notetable[basenote];
@@ -192,6 +191,16 @@ void sound_set_detune(uint8_t mode, uint8_t val)
       detune_amounts[3] = val;
       break;
 
+  }
+  update_frequencies();
+}
+
+
+void sound_set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS])
+{
+  int i;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    tuning_amounts[i] = note_offsets[i] << 9;
   }
   update_frequencies();
 }

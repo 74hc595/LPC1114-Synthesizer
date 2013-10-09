@@ -32,10 +32,59 @@ static void update_detune(uint16_t knobval)
 }
 
 
+static volatile uint8_t chprog_active = 0;
+static uint8_t chprog_oscnum = 0;
+static int8_t chprog_notes[NUM_OSCILLATORS];
+
+static void chprog_finish(void)
+{
+  chprog_active = 0;
+  gpio1_set_pin_low(9);
+
+  /* compute all note positions relative to the first */
+  int i;
+  int8_t first_note = chprog_notes[0];
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    if (i < chprog_oscnum) {
+      chprog_notes[i] -= first_note;
+    } else {
+      chprog_notes[i] = 0;
+    }
+  }
+
+  sound_set_oscillator_tuning(chprog_notes);
+}
+
+
+static void button_pressed(void)
+{
+  /* start chord programming */
+  if (!chprog_active) {
+    chprog_oscnum = 0;
+    chprog_active = 1;
+    gpio1_set_pin_high(9);    
+  }
+  /* end chord programming */
+  else {
+    chprog_finish();
+  }
+}
+
+
+static void chprog_add_note(uint8_t note)
+{
+  chprog_notes[chprog_oscnum] = note;
+  chprog_oscnum++;
+  if (chprog_oscnum == NUM_OSCILLATORS) {
+    chprog_finish();
+  }
+}
+
+
 int main(void)
 {
   cpu_pll_setup(CPU_MULTIPLIER_4);
-  cpu_enable_clkout();
+  //cpu_enable_clkout();
   adc_init();
   spi_init();
   GPIO_GPIO1DIR |= (1<<8)|(1<<9);
@@ -53,6 +102,8 @@ int main(void)
 
   uart_rx_init(BAUD(31250, 48000000));
   
+  uint8_t buttoncount = 0;
+
   while (1) {
     /* read the knobs */
 /*    int ch;
@@ -80,6 +131,20 @@ int main(void)
         knobs[ch].last_value = newval;
       }
     }
+
+    /* read the button */
+    uint16_t button = gpio_pin(GPIO0, 1);
+    if (!button) {
+      buttoncount++;
+      if (buttoncount == 253) {
+        button_pressed();
+      }
+      if (buttoncount >= 254) {
+        buttoncount = 254;
+      }
+    } else {
+      buttoncount = 0;
+    }
   }
 
   return 0;
@@ -95,7 +160,11 @@ static inline void handle_midi_command(void)
       note_off(midibuf[1]);
       break;
     case 0x90:  /* note on */
-      note_on(midibuf[1]);
+      if (!chprog_active) {
+        note_on(midibuf[1]);
+      } else {
+        chprog_add_note(midibuf[1]);
+      }
       break;
     default:
       break;
