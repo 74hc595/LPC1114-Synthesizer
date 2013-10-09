@@ -16,26 +16,19 @@ static knob_t knobs[NUM_KNOBS] = {{0}};
 static void update_waveform(uint16_t knobval)
 {
   if (knobval <= 255) {
-    sound_set_duty_cycle(255 - knobval, 0xF);
-  } else if (knobval <= 384) {
-    sound_set_sawtooth(0xF);
+    sound_set_duty_cycle(255-knobval, 0xF);
+  } else if (knobval <= 500) {
+    sound_set_duty_cycle(knobval-256, 0x3);
+    sound_set_sawtooth(0xC);
   } else {
-    sound_set_lofi_sawtooth(0xF);
+    sound_set_sawtooth(0xF);
   }
 }
 
 
 static void update_detune(uint16_t knobval)
 {
-  if (knobval == 0) {
-    sound_set_detune(1, 0);
-  } else if (knobval <= 80) {
-    sound_set_detune(2, knobval);
-  } else if (knobval <= 160) {
-    sound_set_detune(3, knobval-80);
-  } else {
-    sound_set_detune(4, knobval-160);
-  }
+  sound_set_detune(knobval >> 6, knobval & 0x3f);
 }
 
 
@@ -93,19 +86,54 @@ int main(void)
 }
 
 
-static volatile uint8_t t = 0;
+static volatile uint8_t midibuf[3];
+static volatile uint8_t midibytesleft = 0;
+static inline void handle_midi_command(void)
+{
+  switch (midibuf[0]) {
+    case 0x80:  /* note off */
+      note_off(midibuf[1]);
+      break;
+    case 0x90:  /* note on */
+      note_on(midibuf[1]);
+      break;
+    default:
+      break;
+  }
+}
+
+
 void UART_IRQHandler(void)
 {
   /* get the received byte and clear the interrupt */
   uint8_t byte = UART_U0RBR;
 
-  /* ignore active sense */
-  if (byte == 0xFE) {
-    return;
+  /* command byte */
+  if (byte >= 0x80) {
+    midibuf[0] = byte;
+    switch (byte) {
+      case 0x80:  /* note off */
+      case 0x90:  /* note on */
+        midibytesleft = 2;
+        break;
+      case 0xFE:  /* ignore active sense */
+        break;
+      case 0xFC:  /* stop */
+      case 0xFF:  /* reset */
+      default:
+        midibytesleft = 0;
+    }
   }
-
-  t++;
-  gpio_pin(GPIO1, 9) = (t & 1) ? 0xFFF : 0;
+  /* data byte */
+  else {
+    if (midibytesleft > 0) {
+      midibuf[3-midibytesleft] = byte;
+      midibytesleft--;
+    }
+    if (midibytesleft <= 0) {
+      handle_midi_command();
+    }
+  }
 }
 
 

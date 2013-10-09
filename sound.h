@@ -14,6 +14,9 @@ void sound_set_duty_cycle(uint8_t val, uint8_t oscmask);
 void sound_set_sawtooth(uint8_t oscmask);
 void sound_set_lofi_sawtooth(uint8_t oscmask);
 
-void sound_set_detune(uint8_t num_oscillators, uint8_t spread);
+void sound_set_detune(uint8_t mode, uint8_t val);
+
+void note_on(uint8_t notenum);
+void note_off(uint8_t notenum);
 
 #endif

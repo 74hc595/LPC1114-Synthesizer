@@ -2,6 +2,8 @@
 
 #define NUM_OSCILLATORS 4
 
+extern uint32_t notetable[128];
+
 /**
  * Oscillator state.
  */
@@ -61,10 +63,17 @@ static inline void oscillator_set_pulse(int oscnum, uint8_t duty)
  */
 static inline void oscillator_set_sawtooth(int oscnum)
 {
+#if 0
+  osc_update_base[oscnum].waveform_code[0] = 0x4252; /* neg r2, 2 */
+  osc_update_base[oscnum].waveform_code[1] = 0x13d2; /* asr r2, #15 */
+  osc_update_base[oscnum].waveform_code[2] = 0x434a; /* mul r2, r1 */ 
+  osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */   
+#else
   osc_update_base[oscnum].waveform_code[0] = 0x13d2; /* asr r2, #15 */
   osc_update_base[oscnum].waveform_code[1] = 0x434a; /* mul r2, r1 */ 
   osc_update_base[oscnum].waveform_code[2] = 0x46c0; /* nop */   
   osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */
+#endif
 }
 
 
@@ -84,11 +93,11 @@ static inline void oscillator_set_lofi_sawtooth(int oscnum)
 
 void sound_init(void)
 {
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    oscillators[i].freq = TEST_FREQ;
-    osc_update_base[i].volume = 255;
-  }
+//  int i;
+//  for (i = 0; i < NUM_OSCILLATORS; i++) {
+//    oscillators[i].freq = TEST_FREQ;
+//    osc_update_base[i].volume = 255;
+//  }
 }
 
 
@@ -138,33 +147,87 @@ void sound_set_lofi_sawtooth(uint8_t oscmask)
 }
 
 
+static uint16_t current_note = 0;
+static int16_t detune_amounts[NUM_OSCILLATORS];
 
-
-void sound_set_detune(uint8_t num_oscillators, uint8_t spread)
+void update_frequencies()
 {
   int i;
-  uint32_t phase = 0;
-  uint32_t freq = TEST_FREQ;
-  if (num_oscillators == 1) {
-    for (i = 0; i < NUM_OSCILLATORS; i++) {
-      oscillators[i].phase = phase;
-      oscillators[i].freq = freq;
-    }
-  } else if (num_oscillators == 2) {
-    oscillators[0].freq = freq;
-    oscillators[1].freq = freq;
-    oscillators[2].freq = freq + 1000*spread;
-    oscillators[3].freq = freq + 1000*spread;
-  } else if (num_oscillators == 3) {
-    oscillators[0].freq = freq;
-    oscillators[1].freq = freq;
-    oscillators[2].freq = freq + 1000*spread;
-    oscillators[3].freq = freq - 1000*spread;
-  } else if (num_oscillators == 4) {
-    oscillators[0].freq = freq;
-    oscillators[1].freq = freq + 1000*spread;
-    oscillators[2].freq = freq - 1000*spread;
-    oscillators[3].freq = freq + 2000*spread;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    uint16_t note = current_note + detune_amounts[i];
+    uint8_t basenote = note >> 9;
+    uint32_t fracnote = note & ((1 << 9)-1);
+    uint32_t basefreq = notetable[basenote];
+    uint32_t delta = (notetable[basenote+1]-basefreq) >> 9;
+    oscillators[i].freq = basefreq + fracnote*delta;
+  }  
+}  
+
+
+void sound_set_detune(uint8_t mode, uint8_t val)
+{
+  switch (mode) {
+    case 0:
+      detune_amounts[0] = 0;
+      detune_amounts[1] = 0;
+      detune_amounts[2] = val;
+      detune_amounts[3] = val;
+      break;
+    case 1:
+      detune_amounts[0] = 0;
+      detune_amounts[1] = 0;
+      detune_amounts[2] = val;
+      detune_amounts[3] = -val;
+      break;
+    case 2:
+      detune_amounts[0] = 0;
+      detune_amounts[1] = val*2;
+      detune_amounts[2] = val;
+      detune_amounts[3] = -(val >> 1);
+      break;
+    case 3:
+      detune_amounts[0] = 0;
+      detune_amounts[1] = -val*2;
+      detune_amounts[2] = val*3;
+      detune_amounts[3] = val;
+      break;
+
   }
+  update_frequencies();
 }
 
+
+uint32_t freq_for_note(uint16_t note)
+{
+  uint8_t basenote = note >> 9;
+  uint32_t fracnote = note & ((1 << 9)-1);
+  uint32_t basefreq = notetable[basenote];
+  uint32_t delta = (notetable[basenote+1]-basefreq) >> 9;
+  return basefreq + fracnote*delta;
+}
+
+
+void note_on(uint8_t notenum)
+{
+  current_note = notenum << 9;
+  int i;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    oscillators[i].phase = 0;
+    osc_update_base[i].volume = 255;
+  }
+  update_frequencies();
+}
+
+
+void note_off(uint8_t notenum)
+{
+  /* TODO: proper handling */
+  if (notenum != (current_note >> 9)) {
+    return;
+  }
+
+  int i;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    osc_update_base[i].volume = 0;
+  }
+}

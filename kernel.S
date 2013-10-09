@@ -26,6 +26,7 @@ osc_update_base:
 
 @ When sawtooth wave is selected, the "modifiable code" sections
 @ will be replaced with the following instructions:
+@	neg	r2, r2
 @	asr	r2, #15
 @	mul	r2, r1
 @	nop
@@ -38,10 +39,10 @@ osc_update_base:
 @	mul	r2, r1
 
 @ lo-fi sawtooth:
-	asr	r2, #30
-	lsl	r2, #15
-	mul	r2, r1
-	nop
+@	asr	r2, #30
+@	lsl	r2, #15
+@	mul	r2, r1
+@	nop
 
 #if 0
 @ Chamberlin state-variable filter
