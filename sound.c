@@ -69,7 +69,7 @@ static uint16_t current_pitch = 0;
 static uint16_t dest_pitch = 0;
 
 /* Glide rate. If 0, glide is off and pitch changes are instantaneous. */
-static int16_t glide_rate = 100;
+static int16_t glide_rate = 0;
 
 /* Pitch bend amount. Signed. */
 static int16_t pitch_bend = 0;
@@ -335,6 +335,26 @@ void set_pitch_bend(int16_t semitones)
   freq_needs_update = true;
 }
 
+
+void set_glide(glide_t glide)
+{
+  switch (glide) {
+    case GLIDE_OFF:
+    default:
+      glide_rate = 0;
+      current_pitch = dest_pitch;
+      break;
+    case GLIDE_FAST:
+      glide_rate = 300;
+      break;
+    case GLIDE_MEDIUM:
+      glide_rate = 150;
+      break;
+    case GLIDE_SLOW:
+      glide_rate = 50;
+      break;
+  }
+}
 
 /**
  * Update envelopes, LFO, and glide.

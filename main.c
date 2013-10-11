@@ -166,6 +166,19 @@ static inline void handle_midi_command(void)
         chprog_add_note(midibuf[1]);
       }
       break;
+    case 0xC0:  /* program change */
+      /* temporary; using this to control glide amount for now */
+      set_glide(midibuf[2]);
+      break;
+    case 0xE0:  /* pitch bend */
+    {
+      /* convert 14-bit value to 10-bit semitone amount
+       * (right shift by 3 bits to get a range of +/- 2 semitones */
+      uint16_t raw14bit = ((uint16_t)midibuf[2] << 7) | midibuf[0];
+      int16_t semitones = (((int16_t)raw14bit) - 8192) >> 3;
+      set_pitch_bend(semitones);
+      break;
+    }
     default:
       break;
   }
@@ -183,7 +196,11 @@ void UART_IRQHandler(void)
     switch (byte) {
       case 0x80:  /* note off */
       case 0x90:  /* note on */
+      case 0xE0:  /* pitch bend */
         midibytesleft = 2;
+        break;
+      case 0xC0:  /* program change */
+        midibytesleft = 1;
         break;
       case 0xFE:  /* ignore active sense */
         break;

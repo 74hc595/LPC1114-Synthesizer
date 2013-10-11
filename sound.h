@@ -10,6 +10,14 @@
 
 #define NUM_OSCILLATORS 4
 
+typedef enum {
+  GLIDE_OFF,
+  GLIDE_FAST,
+  GLIDE_MEDIUM,
+  GLIDE_SLOW,
+  NUM_GLIDE_PRESETS
+} glide_t;
+
 void sound_init(void);
 
 void sound_set_duty_cycle(uint8_t val, uint8_t oscmask);
@@ -25,5 +33,8 @@ void note_off(uint8_t notenum);
 
 /* Sets pitch bend in fractional semitones (signed) */
 void set_pitch_bend(int16_t semitones);
+
+/* Sets glide rate to a preset. */
+void set_glide(glide_t glide);
 
 #endif
