@@ -1,4 +1,5 @@
 #include "sound.h"
+#include "hardware.h"
 
 extern uint32_t notetable[128];
 
@@ -50,9 +51,33 @@ typedef struct {
   };
 } byte_queue_t;
 
-static uint16_t current_note = 0;
+/**
+ * Pitches are represented as 7.9 fixed-point numbers, with the integer
+ * part representing a MIDI note number (equal temperament) and the lower
+ * 9 bits representing a fraction of a half step.
+ * A lookup table is used to convert note numbers to frequencies, but linear
+ * interpolation is used for intermediate pitches.
+ * Thus, the full pitch range is a piecewise linear representation of an exponential.
+ */
+
+/* The current pitch value, including glide but not including pitch bend. */
+static uint16_t current_pitch = 0;
+
+/* The "destination" pitch; the pitch that the glide is ascending/descending toward.
+ * If glide is off, this will be identical to current_pitch. */
+static uint16_t dest_pitch = 0;
+
+/* Glide rate. If 0, glide is off and pitch changes are instantaneous. */
+static int16_t glide_rate = 100;
+
+/* Additional coarse tuning offsets applied to individual oscillators. */
 static int16_t tuning_amounts[NUM_OSCILLATORS];
+
+/* Additional fine tuning amounts applied to individual oscillators. */
 static int16_t detune_amounts[NUM_OSCILLATORS];
+
+/* 4-element queue used to keep track of which keys are being held down.
+ * Each element is a MIDI note number. */
 static byte_queue_t playing_notes = {0};
 
 extern volatile oscillator_state_t oscillators[4];
@@ -168,7 +193,7 @@ void update_frequencies()
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    uint16_t note = current_note + tuning_amounts[i] + detune_amounts[i];
+    uint16_t note = current_pitch + tuning_amounts[i] + detune_amounts[i];
     uint8_t basenote = note >> 9;
     uint32_t fracnote = note & ((1 << 9)-1);
     uint32_t basefreq = notetable[basenote];
@@ -241,11 +266,19 @@ void note_on(uint8_t notenum)
   playing_notes.bits |= (uint32_t)notenum << (playing_notes.count*8);
   playing_notes.count++;
 
-  current_note = notenum << 9;
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    oscillators[i].phase = 0;
-    osc_update_base[i].volume = 255;
+  dest_pitch = notenum << 9;
+  if (!glide_rate) {
+    current_pitch = dest_pitch;
+  }
+
+  /* if this is the first note being played, reset the oscillator phases and glide */
+  if (playing_notes.count == 1) {
+    int i;
+    current_pitch = dest_pitch;
+    for (i = 0; i < NUM_OSCILLATORS; i++) {
+      oscillators[i].phase = 0;
+      osc_update_base[i].volume = 255;
+    }
   }
   update_frequencies();
 }
@@ -278,7 +311,40 @@ void note_off(uint8_t notenum)
   }
   /* otherwise, change pitch to the note at the end of the queue */
   else {
-    current_note = playing_notes.bytes[playing_notes.count-1]<< 9;
+    dest_pitch = playing_notes.bytes[playing_notes.count-1] << 9;
+    if (!glide_rate) {
+      current_pitch = dest_pitch;
+    }
     update_frequencies();
+  }
+}
+
+
+/**
+ * Update envelopes, LFO, and glide.
+ */
+void TIMER32_0_IRQHandler(void)
+{
+  /* Clear the interrupt flag */
+  TMR_TMR32B0IR = TMR_TMR32B0IR_MR0;
+
+  /* Update glide */
+  if (glide_rate) {
+    /* Gliding up? */
+    if (current_pitch < dest_pitch) {
+      current_pitch += glide_rate;
+      if (current_pitch > dest_pitch) {
+        current_pitch = dest_pitch;
+      }
+      update_frequencies();
+    }
+    /* Gliding down? */
+    else if (current_pitch > dest_pitch) {
+      current_pitch -= glide_rate;
+      if (current_pitch < dest_pitch) {
+        current_pitch = dest_pitch;
+      }
+      update_frequencies();
+    }
   }
 }

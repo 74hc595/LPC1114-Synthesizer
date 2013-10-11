@@ -41,4 +41,10 @@ void uart_rx_init(uint16_t divisor);
  */
 #define BAUD(rate, cpufreq) (cpufreq/(16*(rate)))
 
+
+/**
+ * Sets up 32-bit timer 0 to trigger an interrupt at the given rate.
+ */
+void timer32_init(uint32_t rate);
+
 #endif

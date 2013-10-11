@@ -97,8 +97,8 @@ int main(void)
   knobs[1].bits = 8;
 
   sound_init();
-
   systick_init(200);
+  timer32_init(200000);
 
   uart_rx_init(BAUD(31250, 48000000));
   
