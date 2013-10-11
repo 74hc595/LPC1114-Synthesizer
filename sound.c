@@ -71,6 +71,9 @@ static uint16_t dest_pitch = 0;
 /* Glide rate. If 0, glide is off and pitch changes are instantaneous. */
 static int16_t glide_rate = 100;
 
+/* Pitch bend amount. Signed. */
+static int16_t pitch_bend = 0;
+
 /* Additional coarse tuning offsets applied to individual oscillators. */
 static int16_t tuning_amounts[NUM_OSCILLATORS];
 
@@ -197,8 +200,9 @@ void sound_set_lofi_sawtooth(uint8_t oscmask)
 void update_frequencies()
 {
   int i;
+  uint16_t rootpitch = current_pitch + pitch_bend;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    uint16_t note = current_pitch + tuning_amounts[i] + detune_amounts[i];
+    uint16_t note = rootpitch + tuning_amounts[i] + detune_amounts[i];
     uint8_t basenote = note >> 9;
     uint32_t fracnote = note & ((1 << 9)-1);
     uint32_t basefreq = notetable[basenote];
@@ -322,6 +326,13 @@ void note_off(uint8_t notenum)
     }
     freq_needs_update = true;
   }
+}
+
+
+void set_pitch_bend(int16_t semitones)
+{
+  pitch_bend = semitones;
+  freq_needs_update = true;
 }
 
 

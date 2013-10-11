@@ -23,4 +23,7 @@ void sound_set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS]);
 void note_on(uint8_t notenum);
 void note_off(uint8_t notenum);
 
+/* Sets pitch bend in fractional semitones (signed) */
+void set_pitch_bend(int16_t semitones);
+
 #endif
