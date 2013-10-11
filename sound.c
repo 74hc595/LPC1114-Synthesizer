@@ -1,5 +1,6 @@
 #include "sound.h"
 #include "hardware.h"
+#include <stdbool.h>
 
 extern uint32_t notetable[128];
 
@@ -79,6 +80,10 @@ static int16_t detune_amounts[NUM_OSCILLATORS];
 /* 4-element queue used to keep track of which keys are being held down.
  * Each element is a MIDI note number. */
 static byte_queue_t playing_notes = {0};
+
+/* Indicates that the oscillator frequencies need to be recomputed.
+ * If true, frequencies will be updated on the next tick of the low-frequency timer. */
+static volatile _Bool freq_needs_update = false;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -232,7 +237,7 @@ void sound_set_detune(uint8_t mode, uint8_t val)
       break;
 
   }
-  update_frequencies();
+  freq_needs_update = true;
 }
 
 
@@ -242,7 +247,7 @@ void sound_set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS])
   for (i = 0; i < NUM_OSCILLATORS; i++) {
     tuning_amounts[i] = note_offsets[i] << 9;
   }
-  update_frequencies();
+  freq_needs_update = true;
 }
 
 
@@ -280,7 +285,7 @@ void note_on(uint8_t notenum)
       osc_update_base[i].volume = 255;
     }
   }
-  update_frequencies();
+  freq_needs_update = true;
 }
 
 
@@ -315,7 +320,7 @@ void note_off(uint8_t notenum)
     if (!glide_rate) {
       current_pitch = dest_pitch;
     }
-    update_frequencies();
+    freq_needs_update = true;
   }
 }
 
@@ -336,7 +341,7 @@ void TIMER32_0_IRQHandler(void)
       if (current_pitch > dest_pitch) {
         current_pitch = dest_pitch;
       }
-      update_frequencies();
+      freq_needs_update = true;
     }
     /* Gliding down? */
     else if (current_pitch > dest_pitch) {
@@ -344,7 +349,13 @@ void TIMER32_0_IRQHandler(void)
       if (current_pitch < dest_pitch) {
         current_pitch = dest_pitch;
       }
-      update_frequencies();
+      freq_needs_update = true;
     }
+  }
+
+  /* Update oscillator frequencies */
+  if (freq_needs_update) {
+    freq_needs_update = false;
+    update_frequencies();
   }
 }
