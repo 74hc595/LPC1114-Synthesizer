@@ -116,3 +116,6 @@ clean:
 
 flash: firmware
 	$(LPC21ISP) -control -controlswap $(OUTFILE).hex $(FTDI_DEV) 115200 $(FXTAL_KHZ)	
+
+dis: firmware
+	$(OBJDUMP) -D $(OUTFILE).elf | less

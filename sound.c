@@ -36,6 +36,25 @@ typedef struct
 } oscillator_control_t;
 
 
+/**
+ * The synth uses last-note priority; when multiple keys are held down,
+ * the one that sounds is always the most recent one pressed.
+ * We keep of the last 4 notes pressed using a 4-byte queue
+ * that can be manipulated in constant time using shift and mask operations.
+ */
+typedef struct {
+  uint8_t count;
+  union {
+    uint32_t bits;
+    uint8_t bytes[4];
+  };
+} byte_queue_t;
+
+static uint16_t current_note = 0;
+static int16_t tuning_amounts[NUM_OSCILLATORS];
+static int16_t detune_amounts[NUM_OSCILLATORS];
+static byte_queue_t playing_notes = {0};
+
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
 
@@ -145,15 +164,11 @@ void sound_set_lofi_sawtooth(uint8_t oscmask)
 }
 
 
-static uint16_t current_note = 0;
-static int16_t tuning_amounts[NUM_OSCILLATORS];
-static int16_t detune_amounts[NUM_OSCILLATORS];
-
 void update_frequencies()
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    uint16_t note = current_note + tuning_amounts[i];// + detune_amounts[i];
+    uint16_t note = current_note + tuning_amounts[i] + detune_amounts[i];
     uint8_t basenote = note >> 9;
     uint32_t fracnote = note & ((1 << 9)-1);
     uint32_t basefreq = notetable[basenote];
@@ -218,6 +233,14 @@ uint32_t freq_for_note(uint16_t note)
 
 void note_on(uint8_t notenum)
 {
+  /* add note to the queue; kick out the oldest note if the queue is full */
+  if (playing_notes.count == 4) {
+    playing_notes.bits >>= 8;
+    playing_notes.count--;
+  }
+  playing_notes.bits |= (uint32_t)notenum << (playing_notes.count*8);
+  playing_notes.count++;
+
   current_note = notenum << 9;
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
@@ -230,13 +253,32 @@ void note_on(uint8_t notenum)
 
 void note_off(uint8_t notenum)
 {
-  /* TODO: proper handling */
-  if (notenum != (current_note >> 9)) {
-    return;
+  /* remove the note from the queue
+   * assumes that the note won't appear twice, which would only happen if
+   * the MIDI device misbehaved and sent multiple note-on messages for the
+   * same note without any note-offs */
+  int i;
+  for (i = 0; i < playing_notes.count; i++) {
+    if (playing_notes.bytes[i] == notenum) {
+      uint8_t shift = i*8;
+      uint32_t shiftedbits = playing_notes.bits;
+      playing_notes.bits &= ((uint32_t)1 << shift)-1;
+      shiftedbits = (shiftedbits >> (shift+8)) << shift;
+      playing_notes.bits |= shiftedbits;
+      playing_notes.count--;
+      break;
+    }
   }
 
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    osc_update_base[i].volume = 0;
+  /* if no more keys are held down, stop playing */
+  if (playing_notes.count == 0) {
+    for (i = 0; i < NUM_OSCILLATORS; i++) {
+      osc_update_base[i].volume = 0;
+    }
+  }
+  /* otherwise, change pitch to the note at the end of the queue */
+  else {
+    current_note = playing_notes.bytes[playing_notes.count-1]<< 9;
+    update_frequencies();
   }
 }
