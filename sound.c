@@ -38,6 +38,13 @@ typedef struct
 } oscillator_control_t;
 
 
+typedef enum {
+  ENV_OFF,
+  ENV_ATTACK,
+  ENV_SUSTAIN,
+  ENV_RELEASE
+} env_stage_t;
+
 /**
  * The synth uses last-note priority; when multiple keys are held down,
  * the one that sounds is always the most recent one pressed.
@@ -87,6 +94,22 @@ static byte_queue_t playing_notes = {0};
 /* Indicates that the oscillator frequencies need to be recomputed.
  * If true, frequencies will be updated on the next tick of the low-frequency timer. */
 static volatile _Bool freq_needs_update = false;
+
+/* Envelope attack rate. */
+static uint16_t attack_rate = 0;
+
+/* Envelope release rate. */
+static uint16_t release_rate = 0;
+
+/* Envelope value. Only the upper byte is used for amplitude. */
+static uint16_t envelope = 0;
+
+/* Whether sustain is enabled. If false, release begins immediately after
+ * the attack. */
+static _Bool sustain = false;
+
+/* Envelope stage. */
+static env_stage_t envelope_stage = ENV_OFF;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -143,6 +166,10 @@ static inline void oscillator_set_lofi_sawtooth(int oscnum)
 
 void sound_init(void)
 {
+  sustain = true;
+  attack_rate = 20;
+  release_rate = 0xFF;
+
 //  int i;
 //  for (i = 0; i < NUM_OSCILLATORS; i++) {
 //    oscillators[i].freq = TEST_FREQ;
@@ -284,10 +311,12 @@ void note_on(uint8_t notenum)
   if (playing_notes.count == 1) {
     int i;
     current_pitch = dest_pitch;
-    for (i = 0; i < NUM_OSCILLATORS; i++) {
-      oscillators[i].phase = 0;
-      osc_update_base[i].volume = 255;
+    if (envelope_stage == ENV_OFF) {
+      for (i = 0; i < NUM_OSCILLATORS; i++) {
+        oscillators[i].phase = 0;
+      }
     }
+    envelope_stage = ENV_ATTACK;
   }
   freq_needs_update = true;
 }
@@ -314,8 +343,8 @@ void note_off(uint8_t notenum)
 
   /* if no more keys are held down, stop playing */
   if (playing_notes.count == 0) {
-    for (i = 0; i < NUM_OSCILLATORS; i++) {
-      osc_update_base[i].volume = 0;
+    if (envelope_stage != ENV_OFF) {
+      envelope_stage = ENV_RELEASE;
     }
   }
   /* otherwise, change pitch to the note at the end of the queue */
@@ -356,6 +385,19 @@ void set_glide(glide_t glide)
   }
 }
 
+
+void set_attack(uint16_t val)
+{
+  attack_rate = val;
+}
+
+
+void set_release(uint16_t val)
+{
+  release_rate = val;
+}
+
+
 /**
  * Update envelopes, LFO, and glide.
  */
@@ -382,6 +424,38 @@ void TIMER32_0_IRQHandler(void)
       }
       freq_needs_update = true;
     }
+  }
+
+  /* Update envelope */
+  int32_t new_envelope = envelope;
+  switch (envelope_stage) {
+    case ENV_OFF:
+      new_envelope = 0;
+      break;
+    case ENV_ATTACK:
+      new_envelope += attack_rate;
+      if (new_envelope >= 0xFFFF) {
+        new_envelope = 0xFFFF;
+        envelope_stage = (sustain) ? ENV_SUSTAIN : ENV_RELEASE;
+      }
+      break;
+    case ENV_SUSTAIN:
+      new_envelope = 0xFFFF;
+      break;
+    case ENV_RELEASE:
+      new_envelope -= release_rate;
+      if (new_envelope < 0) {
+        new_envelope = 0;
+        envelope_stage = ENV_OFF;
+      }
+      break;
+  }
+  envelope = new_envelope;
+
+  int i;
+  uint8_t vol = envelope >> 8;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    osc_update_base[i].volume = vol;
   }
 
   /* Update oscillator frequencies */

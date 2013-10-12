@@ -37,4 +37,7 @@ void set_pitch_bend(int16_t semitones);
 /* Sets glide rate to a preset. */
 void set_glide(glide_t glide);
 
+void set_attack(uint16_t val);
+void set_release(uint16_t val);
+
 #endif

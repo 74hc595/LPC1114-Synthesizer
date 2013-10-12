@@ -1,7 +1,7 @@
 #include "hardware.h"
 #include "sound.h"
 
-#define NUM_KNOBS 2
+#define NUM_KNOBS 4
 typedef struct
 {
 //  uint32_t accum;
@@ -29,6 +29,18 @@ static void update_waveform(uint16_t knobval)
 static void update_detune(uint16_t knobval)
 {
   sound_set_detune(knobval >> 6, knobval & 0x3f);
+}
+
+
+static void update_attack(uint16_t knobval)
+{
+  set_attack((256 - knobval) << 7);
+}
+
+
+static void update_release(uint16_t knobval)
+{
+  set_release((256 - knobval) << 7);
 }
 
 
@@ -95,6 +107,11 @@ int main(void)
   knobs[0].bits = 9;
   knobs[1].update_fn = update_detune;
   knobs[1].bits = 8;
+  knobs[2].update_fn = update_attack;
+  knobs[2].bits = 8;
+  knobs[3].update_fn = update_release;
+  knobs[3].bits = 8;
+
 
   sound_init();
   systick_init(200);
