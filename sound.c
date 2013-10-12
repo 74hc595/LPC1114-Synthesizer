@@ -42,8 +42,15 @@ typedef enum {
   ENV_OFF,
   ENV_ATTACK,
   ENV_SUSTAIN,
-  ENV_RELEASE
+  ENV_RELEASE,
+  ENV_REPEAT
 } env_stage_t;
+
+typedef enum {
+  SUSTAIN_ON,
+  SUSTAIN_OFF,
+  SUSTAIN_REPEAT
+} sustain_mode_t;
 
 /**
  * The synth uses last-note priority; when multiple keys are held down,
@@ -104,9 +111,16 @@ static uint16_t release_rate = 0;
 /* Envelope value. Only the upper byte is used for amplitude. */
 static uint16_t envelope = 0;
 
-/* Whether sustain is enabled. If false, release begins immediately after
- * the attack. */
-static _Bool sustain = false;
+/* Sustain mode: off, on, or repeat. */
+static sustain_mode_t sustain_mode = SUSTAIN_ON;
+
+/* Number of "echoes," i.e. times the release phase repeats after the
+ * normal release ends. */
+static uint8_t echoes = 0;
+
+/* Number of echoes currently left. */
+static uint8_t echoes_left = 0;
+
 
 /* Envelope stage. */
 static env_stage_t envelope_stage = ENV_OFF;
@@ -166,15 +180,10 @@ static inline void oscillator_set_lofi_sawtooth(int oscnum)
 
 void sound_init(void)
 {
-  sustain = true;
-  attack_rate = 20;
+  sustain_mode = SUSTAIN_ON;
+  attack_rate = 0xFF;
   release_rate = 0xFF;
-
-//  int i;
-//  for (i = 0; i < NUM_OSCILLATORS; i++) {
-//    oscillators[i].freq = TEST_FREQ;
-//    osc_update_base[i].volume = 255;
-//  }
+  echoes = 0;
 }
 
 
@@ -308,7 +317,7 @@ void note_on(uint8_t notenum)
   }
 
   /* if this is the first note being played, reset the oscillator phases and glide */
-  if (playing_notes.count == 1) {
+  if (playing_notes.count == 1 || (sustain_mode == SUSTAIN_OFF)) {
     int i;
     current_pitch = dest_pitch;
     if (envelope_stage == ENV_OFF) {
@@ -433,10 +442,21 @@ void TIMER32_0_IRQHandler(void)
       new_envelope = 0;
       break;
     case ENV_ATTACK:
+      echoes_left = echoes;
       new_envelope += attack_rate;
       if (new_envelope >= 0xFFFF) {
         new_envelope = 0xFFFF;
-        envelope_stage = (sustain) ? ENV_SUSTAIN : ENV_RELEASE;
+        switch (sustain_mode) {
+          case SUSTAIN_ON:
+            envelope_stage = ENV_SUSTAIN;
+            break;
+          case SUSTAIN_OFF:
+            envelope_stage = ENV_RELEASE;
+            break;
+          case SUSTAIN_REPEAT:
+            envelope_stage = ENV_REPEAT;
+            break;
+        }
       }
       break;
     case ENV_SUSTAIN:
@@ -445,15 +465,27 @@ void TIMER32_0_IRQHandler(void)
     case ENV_RELEASE:
       new_envelope -= release_rate;
       if (new_envelope < 0) {
+        if (!echoes_left) {
+          new_envelope = 0;
+          envelope_stage = ENV_OFF;
+        } else {
+          echoes_left--;
+          new_envelope = 0xFFFF;
+        }
+      }
+      break;
+    case ENV_REPEAT:
+      new_envelope -= release_rate;
+      if (new_envelope < 0) {
         new_envelope = 0;
-        envelope_stage = ENV_OFF;
+        envelope_stage = ENV_ATTACK;
       }
       break;
   }
   envelope = new_envelope;
 
   int i;
-  uint8_t vol = envelope >> 8;
+  uint8_t vol = envelope >> (8+echoes-echoes_left);
   for (i = 0; i < NUM_OSCILLATORS; i++) {
     osc_update_base[i].volume = vol;
   }
