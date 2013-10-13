@@ -37,7 +37,11 @@ void set_pitch_bend(int16_t semitones);
 /* Sets glide rate to a preset. */
 void set_glide(glide_t glide);
 
-void set_attack(uint16_t val);
-void set_release(uint16_t val);
+/* Sets attack rate.
+ * 0 is instantaneous; 128 is 1 second; 255 is 10 seconds */
+void set_attack(uint8_t val);
+
+/* Sets release rate. (same as attack) */
+void set_release(uint8_t val);
 
 #endif

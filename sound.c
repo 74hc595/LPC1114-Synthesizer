@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 extern uint32_t notetable[128];
+extern uint16_t envtable[256];
 
 /**
  * Oscillator state.
@@ -72,7 +73,7 @@ typedef struct {
  * 9 bits representing a fraction of a half step.
  * A lookup table is used to convert note numbers to frequencies, but linear
  * interpolation is used for intermediate pitches.
- * Thus, the full pitch range is a piecewise linear representation of an exponential.
+ * Thus the full pitch range is a piecewise linear approximation of an exponential.
  */
 
 /* The current pitch value, including glide but not including pitch bend. */
@@ -120,7 +121,6 @@ static uint8_t echoes = 0;
 
 /* Number of echoes currently left. */
 static uint8_t echoes_left = 0;
-
 
 /* Envelope stage. */
 static env_stage_t envelope_stage = ENV_OFF;
@@ -181,8 +181,8 @@ static inline void oscillator_set_lofi_sawtooth(int oscnum)
 void sound_init(void)
 {
   sustain_mode = SUSTAIN_ON;
-  attack_rate = 0xFF;
-  release_rate = 0xFF;
+  attack_rate = 0xFFFF;
+  release_rate = 0xFFFF;
   echoes = 0;
 }
 
@@ -395,20 +395,20 @@ void set_glide(glide_t glide)
 }
 
 
-void set_attack(uint16_t val)
+void set_attack(uint8_t val)
 {
-  attack_rate = val;
+  attack_rate = envtable[val];
 }
 
 
-void set_release(uint16_t val)
+void set_release(uint8_t val)
 {
-  release_rate = val;
+  release_rate = envtable[val];
 }
 
 
 /**
- * Update envelopes, LFO, and glide.
+ * Update envelope, LFO, and glide.
  */
 void TIMER32_0_IRQHandler(void)
 {

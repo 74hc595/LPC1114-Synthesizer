@@ -34,13 +34,13 @@ static void update_detune(uint16_t knobval)
 
 static void update_attack(uint16_t knobval)
 {
-  set_attack((256 - knobval) << 7);
+  set_attack(knobval);
 }
 
 
 static void update_release(uint16_t knobval)
 {
-  set_release((256 - knobval) << 7);
+  set_release(knobval);
 }
 
 
