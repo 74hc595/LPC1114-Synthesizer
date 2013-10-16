@@ -93,8 +93,8 @@ void spi_init(void)
   /* 16-bit transfers, mode 0, 1 bit per prescaler clock cycle */
   SSP_SSP0CR0 = SSP_SSP0CR0_DSS_16BIT |
                 SSP_SSP0CR0_FRF_SPI |
-                SSP_SSP0CR0_CPOL_LOW |
-                SSP_SSP0CR0_CPHA_FIRST;
+                SSP_SSP0CR0_CPOL_HIGH |
+                SSP_SSP0CR0_CPHA_SECOND;
 
   /* 1/4 clock prescaler */
   SSP_SSP0CPSR = SSP_SSP0CPSR_CPSDVSR_DIV4;
