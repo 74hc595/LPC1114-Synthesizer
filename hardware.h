@@ -33,7 +33,13 @@ void spi_init(void);
  * no parity, 1 stop bit, and enables the receive interrupt.
  * "divisor" should be the output of the BAUD() macro.
  */
-void uart_rx_init(uint16_t divisor);
+void uart_init(uint16_t divisor);
+
+
+/**
+ * Sends a byte over the UART.
+ */
+void uart_send_byte(uint8_t byte);
 
 
 /**

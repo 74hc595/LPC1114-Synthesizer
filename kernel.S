@@ -139,8 +139,6 @@ offset:
 	.word	0x00000800		@ convert 2's complement to offset
 dac_bits:
 	.word	0x00003000		@ /GA and /SHDN bits
-test:
-	.word	0x000007ff
 
 .global oscillators
 .global osc_update_base

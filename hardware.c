@@ -79,6 +79,10 @@ void spi_init(void)
   /* Enable AHB clock to the SSP domain. */
   SCB_SYSAHBCLKCTRL |= (SCB_SYSAHBCLKCTRL_SSP0);
 
+  /* Set P0.8 to SSP MISO */
+  IOCON_PIO0_8 &= ~IOCON_PIO0_8_FUNC_MASK;
+  IOCON_PIO0_8 |= IOCON_PIO0_8_FUNC_MISO0;
+
   /* Set P0.9 to SSP MOSI */
   IOCON_PIO0_9 &= ~IOCON_PIO0_9_FUNC_MASK;
   IOCON_PIO0_9 |= IOCON_PIO0_9_FUNC_MOSI0;
@@ -88,7 +92,7 @@ void spi_init(void)
   IOCON_PIO0_6 = IOCON_PIO0_6_FUNC_SCK;
 
   /* Set P0.2 to SSP SSEL */
-  IOCON_PIO0_2 = IOCON_PIO0_2_FUNC_SSEL|IOCON_PIO0_3_MODE_INACTIVE;
+  IOCON_PIO0_2 = IOCON_PIO0_2_FUNC_SSEL;
 
   /* 16-bit transfers, mode 0, 1 bit per prescaler clock cycle */
   SSP_SSP0CR0 = SSP_SSP0CR0_DSS_16BIT |
@@ -106,7 +110,7 @@ void spi_init(void)
 }
 
 
-void uart_rx_init(uint16_t divisor)
+void uart_init(uint16_t divisor)
 {
   /* Set 1.6 UART RXD */
   IOCON_PIO1_6 &= ~IOCON_PIO1_6_FUNC_MASK;
@@ -131,13 +135,23 @@ void uart_rx_init(uint16_t divisor)
   UART_U0DLL = divisor & 0xFF;
   UART_U0LCR &= (~UART_U0LCR_Divisor_Latch_Access_MASK);
 
-  /* Enable RX FIFO */
-  UART_U0FCR = UART_U0FCR_FIFO_Enabled | UART_U0FCR_Rx_FIFO_Reset;
+  /* Enable RX and TX FIFO */
+  UART_U0FCR = UART_U0FCR_FIFO_Enabled |
+               UART_U0FCR_Tx_FIFO_Reset |
+               UART_U0FCR_Rx_FIFO_Reset;
 
   /* Enable the UART interrupt */
   NVIC_EnableIRQ(UART_IRQn);
   UART_U0IER = UART_U0IER_RBR_Interrupt_Enabled;
 }
+
+
+void uart_send_byte(uint8_t byte)
+{
+  while (!(UART_U0LSR & UART_U0LSR_THRE)) {}
+  UART_U0THR = byte;
+}
+
 
 
 void timer32_init(uint32_t rate)

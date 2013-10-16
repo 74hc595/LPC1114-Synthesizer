@@ -112,12 +112,14 @@ int main(void)
   knobs[3].update_fn = update_release;
   knobs[3].bits = 8;
 
-
   sound_init();
   systick_init(200);
   timer32_init(200000);
 
-  uart_rx_init(BAUD(31250, 48000000));
+  note_on(69);
+
+  //uart_rx_init(BAUD(31250, 48000000));
+  uart_init(BAUD(115200, 48000000));
   
   uint8_t buttoncount = 0;
 
@@ -144,7 +146,7 @@ int main(void)
       uint32_t newval = adc_read_channel(ch);
       newval >>= 10 - knobs[ch].bits;
       if (newval != knobs[ch].last_value) {
-        knobs[ch].update_fn(newval);
+//        knobs[ch].update_fn(newval);
         knobs[ch].last_value = newval;
       }
     }
@@ -162,6 +164,15 @@ int main(void)
     } else {
       buttoncount = 0;
     }
+
+    uint16_t input = SSP_SSP0DR;
+    int i;
+    for (i = 0; i < 16; i++) {
+      char c = '0' + ((input & 0x8000) != 0);
+      uart_send_byte(c);
+      input <<= 1;
+    }
+    uart_send_byte('\n');
   }
 
   return 0;
