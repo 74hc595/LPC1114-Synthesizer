@@ -12,7 +12,7 @@ FLASH = 32K
 SRAM = 8K
 
 # crystal frequency in kHz
-FXTAL_KHZ = 12000
+FXTAL_KHZ = 25000
 
 # For USB support the LPC1xxx reserves 384 bytes from the sram,
 # if you don't want to use the USB features, just use 0 here.

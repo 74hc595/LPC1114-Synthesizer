@@ -53,4 +53,10 @@ void uart_send_byte(uint8_t byte);
  */
 void timer32_init(uint32_t rate);
 
+
+/**
+ * Sets up PWM for 16-bit timer 1 with output pin 1.9.
+ */
+void pwm_init(uint16_t pulsewidth);
+
 #endif

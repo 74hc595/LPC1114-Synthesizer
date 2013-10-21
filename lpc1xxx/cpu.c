@@ -70,7 +70,7 @@
     oscillator or an external crystal).
 */
 /**************************************************************************/
-void cpu_pll_setup(cpu_multiplier_t multiplier)
+void cpu_pll_setup(uint32_t m, uint32_t p)
 {
   uint32_t i;
 
@@ -78,7 +78,7 @@ void cpu_pll_setup(cpu_multiplier_t multiplier)
   SCB_PDRUNCFG &= ~(SCB_PDRUNCFG_SYSOSC_MASK);
 
   // Setup the crystal input (bypass disabled, 1-20MHz crystal)
-  SCB_SYSOSCCTRL = (SCB_SYSOSCCTRL_BYPASS_DISABLED | SCB_SYSOSCCTRL_FREQRANGE_1TO20MHZ);
+  SCB_SYSOSCCTRL = (SCB_SYSOSCCTRL_BYPASS_DISABLED | SCB_SYSOSCCTRL_FREQRANGE_15TO25MHZ);
 
   for (i = 0; i < 200; i++)
   {
@@ -94,6 +94,7 @@ void cpu_pll_setup(cpu_multiplier_t multiplier)
   // Wait until the clock is updated
   while (!(SCB_PLLCLKUEN & SCB_PLLCLKUEN_UPDATE));
 
+  /*
   // Set clock speed
   switch (multiplier)
   {
@@ -122,6 +123,8 @@ void cpu_pll_setup(cpu_multiplier_t multiplier)
       SCB_PLLCTRL = (SCB_PLLCTRL_MSEL_1 | SCB_PLLCTRL_PSEL_8);
       break;
   }
+  */
+  SCB_PLLCTRL = m|p;
 
   // Enable system PLL
   SCB_PDRUNCFG &= ~(SCB_PDRUNCFG_SYSPLL_MASK);

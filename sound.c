@@ -90,10 +90,10 @@ static int16_t glide_rate = 0;
 static int16_t pitch_bend = 0;
 
 /* Additional coarse tuning offsets applied to individual oscillators. */
-static int16_t tuning_amounts[NUM_OSCILLATORS];
+static int16_t tuning_amounts[NUM_OSCILLATORS] = {0};
 
 /* Additional fine tuning amounts applied to individual oscillators. */
-static int16_t detune_amounts[NUM_OSCILLATORS];
+static int16_t detune_amounts[NUM_OSCILLATORS] = {0};
 
 /* 4-element queue used to keep track of which keys are being held down.
  * Each element is a MIDI note number. */
@@ -487,8 +487,9 @@ void TIMER32_0_IRQHandler(void)
   int i;
   uint8_t vol = envelope >> (8+echoes-echoes_left);
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    osc_update_base[i].volume = vol;
+    osc_update_base[i].volume = 255;
   }
+  TMR_TMR16B1MR0 = 255-vol;
 
   /* Update oscillator frequencies */
   if (freq_needs_update) {

@@ -87,9 +87,9 @@ void spi_init(void)
   IOCON_PIO0_9 &= ~IOCON_PIO0_9_FUNC_MASK;
   IOCON_PIO0_9 |= IOCON_PIO0_9_FUNC_MOSI0;
 
-  /* Set P0.6 to SSP SCK */
-  IOCON_SCKLOC = IOCON_SCKLOC_SCKPIN_PIO0_6;
-  IOCON_PIO0_6 = IOCON_PIO0_6_FUNC_SCK;
+  /* Set P0.10 to SSP SCK */
+  IOCON_SCKLOC = IOCON_SCKLOC_SCKPIN_PIO0_10;
+  IOCON_JTAG_TCK_PIO0_10 = IOCON_JTAG_TCK_PIO0_10_FUNC_SCK;
 
   /* Set P0.2 to SSP SSEL */
   IOCON_PIO0_2 = IOCON_PIO0_2_FUNC_SSEL;
@@ -153,7 +153,6 @@ void uart_send_byte(uint8_t byte)
 }
 
 
-
 void timer32_init(uint32_t rate)
 {
   /* Enable the clock for CT32B0 */
@@ -171,3 +170,32 @@ void timer32_init(uint32_t rate)
   /* Start the timer */
   TMR_TMR32B0TCR = TMR_TMR32B0TCR_COUNTERENABLE_ENABLED;
 }
+
+
+void pwm_init(uint16_t pulsewidth)
+{
+  /* Enable clock for 16-bit timer 1 */
+  SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_CT16B1;
+
+  /* Configure PIO1.9 (pin 18) as 16-bit timer 1 MAT0 output */
+  IOCON_PIO1_9 = IOCON_PIO1_9_FUNC_CT16B1_MAT0;
+
+  /* Frequency; PWM period resets at this value */
+  TMR_TMR16B1MR3 = pulsewidth;
+
+  /* Initial duty cycle */
+  TMR_TMR16B1MR0 = pulsewidth/2;
+
+  /* Reset timer when value reaches MR3 */
+  TMR_TMR16B1MCR = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
+
+  /* Toggle pin when value reaches MR0 */
+  TMR_TMR16B1EMR = TMR_TMR16B1EMR_EM0|TMR_TMR16B1EMR_EMC0_TOGGLE;
+
+  /* Enable PWM0 and PWM3 */
+  TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED|TMR_TMR16B1PWMC_PWM3_ENABLED;
+
+  /* Start the timer */
+  TMR_TMR16B1TCR = TMR_TMR16B1TCR_COUNTERENABLE_ENABLED;
+}
+

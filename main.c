@@ -95,7 +95,11 @@ static void chprog_add_note(uint8_t note)
 
 int main(void)
 {
-  cpu_pll_setup(CPU_MULTIPLIER_4);
+  /* FCLKIN = 25MHz
+   * M = 2, so clock frequency is M*FCLKIN = 50MHz
+   * P = 2
+   * FCCO = 2*P*FCLKOUT = 200MHz */
+  cpu_pll_setup(SCB_PLLCTRL_MSEL_2, SCB_PLLCTRL_PSEL_2);
   //cpu_enable_clkout();
   adc_init();
   spi_init();
@@ -113,17 +117,16 @@ int main(void)
   knobs[3].bits = 8;
 
   sound_init();
+  pwm_init(255);
   systick_init(200);
   timer32_init(200000);
 
-  note_on(69);
-
-  //uart_rx_init(BAUD(31250, 48000000));
-  uart_init(BAUD(115200, 48000000));
+  uart_init(BAUD(31250, 50000000));
   
   uint8_t buttoncount = 0;
 
   while (1) {
+#if 0
     /* read the knobs */
 /*    int ch;
     for (ch = 0; ch < NUM_KNOBS; ch++) {
@@ -142,11 +145,11 @@ int main(void)
     }*/
 
     int ch;
-    for (ch = 0; ch < NUM_KNOBS; ch++) {
+    for (ch = 3/*0*/; ch < NUM_KNOBS; ch++) {
       uint32_t newval = adc_read_channel(ch);
       newval >>= 10 - knobs[ch].bits;
       if (newval != knobs[ch].last_value) {
-//        knobs[ch].update_fn(newval);
+        //knobs[ch].update_fn(newval);
         knobs[ch].last_value = newval;
       }
     }
@@ -164,15 +167,7 @@ int main(void)
     } else {
       buttoncount = 0;
     }
-
-    uint16_t input = SSP_SSP0DR;
-    int i;
-    for (i = 0; i < 16; i++) {
-      char c = '0' + ((input & 0x8000) != 0);
-      uart_send_byte(c);
-      input <<= 1;
-    }
-    uart_send_byte('\n');
+#endif
   }
 
   return 0;

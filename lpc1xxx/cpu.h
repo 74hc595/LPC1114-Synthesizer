@@ -44,16 +44,10 @@
 
 #include "lpc111x.h"
 
-typedef enum
-{
-  CPU_MULTIPLIER_1 = 0,
-  CPU_MULTIPLIER_2,
-  CPU_MULTIPLIER_3,
-  CPU_MULTIPLIER_4
-}
-cpu_multiplier_t;
-
-void cpu_pll_setup(cpu_multiplier_t multiplier);
+/* m and p should be SCB_PLLCTRL_MSEL_ and SCB_PLLCTRL_PSEL_ constants
+ * chosen using the steps in section 3.11.4.1 of the LPC1114 user manual
+ * (UM10398). */
+void cpu_pll_setup(uint32_t m, uint32_t p);
 void cpu_enable_clkout(void);
 
 #endif
