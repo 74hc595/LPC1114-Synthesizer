@@ -1,44 +1,94 @@
 #include "hardware.h"
 #include "sound.h"
 
+/* if true, use the UART for debug output instead of MIDI */
+#define DEBUG_LOGGING 0
+
 #define NUM_KNOBS 4
 typedef struct
 {
-//  uint32_t accum;
-//  uint8_t samples;
-  uint8_t bits;
-  uint16_t last_value;
-  void (*update_fn)(uint16_t);
+  uint8_t value;
+  void (*update_fn)(uint8_t);
 } knob_t;
 static knob_t knobs[NUM_KNOBS] = {{0}};
 
 
-static void update_waveform(uint16_t knobval)
+#if DEBUG_LOGGING
+/* for testing */
+static char hexchars[16] = "0123456789ABCDEF";
+static void outhex8(uint8_t x)
 {
-  if (knobval <= 255) {
-    sound_set_duty_cycle(255-knobval, 0xF);
-  } else if (knobval <= 500) {
-    sound_set_duty_cycle(knobval-256, 0x3);
+  uart_send_byte(hexchars[x >> 4]);
+  uart_send_byte(hexchars[x & 0xF]);
+}
+
+
+static void outhex16(uint16_t x)
+{
+  uart_send_byte(hexchars[x >> 12]);
+  uart_send_byte(hexchars[(x >> 8) & 0xF]);
+  uart_send_byte(hexchars[(x >> 4) & 0xF]);
+  uart_send_byte(hexchars[x & 0xF]);
+}
+
+
+static void printgraph(uint8_t x)
+{
+  int i;
+  for (i = 0; i < x; i++) {
+    uart_send_byte(' ');
+  }
+  uart_send_byte('*');
+  uart_send_byte('\n');
+}
+#endif
+
+
+static void update_waveform(uint8_t knobval)
+{
+#if DEBUG_LOGGING
+  uart_send_byte('w');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
+
+  /* First half: adjust duty cycle from 0% to 50%, pulse wave on all oscillators */
+  if (knobval <= 127) {
+    sound_set_duty_cycle((127-knobval)<<1, 0xF);
+  }
+  /* Second half: pulse wave on 2 oscillators and sawtooth on the other two */
+  else if (knobval < 0xFB) {
+    sound_set_duty_cycle(knobval-128, 0x3);
     sound_set_sawtooth(0xC);
-  } else {
+  }
+  /* All the way to the right: sawtooth on all oscilators */
+  else {
     sound_set_sawtooth(0xF);
   }
 }
 
 
-static void update_detune(uint16_t knobval)
+static void update_detune(uint8_t knobval)
 {
+#if DEBUG_LOGGING
+  uart_send_byte('d');
+  outhex8(knobval >> 6);
+  uart_send_byte(',');
+  outhex8(knobval & 0x3f);
+  uart_send_byte('\n');
+#endif
+
   sound_set_detune(knobval >> 6, knobval & 0x3f);
 }
 
 
-static void update_attack(uint16_t knobval)
+static void update_attack(uint8_t knobval)
 {
   set_attack(knobval);
 }
 
 
-static void update_release(uint16_t knobval)
+static void update_release(uint8_t knobval)
 {
   set_release(knobval);
 }
@@ -100,6 +150,10 @@ int main(void)
    * P = 2
    * FCCO = 2*P*FCLKOUT = 200MHz */
   cpu_pll_setup(SCB_PLLCTRL_MSEL_2, SCB_PLLCTRL_PSEL_2);
+
+  /* Allow use of PIO0_0 without resetting the CPU */
+  //IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
+
   //cpu_enable_clkout();
   adc_init();
   spi_init();
@@ -108,25 +162,52 @@ int main(void)
 
   /* set up the knobs */
   knobs[0].update_fn = update_waveform;
-  knobs[0].bits = 9;
   knobs[1].update_fn = update_detune;
-  knobs[1].bits = 8;
   knobs[2].update_fn = update_attack;
-  knobs[2].bits = 8;
   knobs[3].update_fn = update_release;
-  knobs[3].bits = 8;
 
   sound_init();
-  pwm_init(255);
+  pwm_init(254);
   systick_init(200);
   timer32_init(200000);
 
+#if !DEBUG_LOGGING
   uart_init(BAUD(31250, 50000000));
+#else
+  uart_init(BAUD(115200, 50000000));
+#endif
   
-  uint8_t buttoncount = 0;
-
   while (1) {
+
+    /* read the knobs */
+    uint8_t k;
+    for (k = 0; k < 3; k++) {
+      /* discard the lowest 2 bits from the ADC input to reduce noise
+       * use an exponential moving average with alpha=0.25 to prevent
+       * "dither" between values */
+      knob_t *knob = knobs+k;      
+      uint8_t input = adc_read_channel(k) >> 2;
+      int16_t delta = input - knob->value;
+      uint8_t newval = knob->value + (delta >> 2);
+      if (newval != knob->value) {
+        knob->update_fn(newval);
+        knob->value = newval;
+      }
+    }
+
 #if 0
+    for (ch = 1; ch < 2; ch++) {
+      // exponential moving average with alpha=0.25
+      uint16_t input = adc_read_channel(ch) >> 2;
+      int16_t delta = input - lastval;
+      uint16_t newval = lastval + (delta >> 2);
+      if (newval != lastval) {
+        outhex16(newval);
+        uart_send_byte('\n');
+        lastval = newval;
+      }
+    }
+
     /* read the knobs */
 /*    int ch;
     for (ch = 0; ch < NUM_KNOBS; ch++) {
