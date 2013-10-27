@@ -84,12 +84,22 @@ static void update_detune(uint8_t knobval)
 
 static void update_attack(uint8_t knobval)
 {
+#if DEBUG_LOGGING
+  uart_send_byte('a');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
   set_attack(knobval);
 }
 
 
 static void update_release(uint8_t knobval)
 {
+#if DEBUG_LOGGING
+  uart_send_byte('r');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
   set_release(knobval);
 }
 
@@ -157,8 +167,10 @@ int main(void)
   //cpu_enable_clkout();
   adc_init();
   spi_init();
+  
+  /* PIO1_8 is used to control the 4053 analog mux */
   GPIO_GPIO1DIR |= (1<<8)|(1<<9);
-  gpio1_set_pin_low(9);
+  gpio1_set_pin_low(8);
 
   /* set up the knobs */
   knobs[0].update_fn = update_waveform;
@@ -181,12 +193,22 @@ int main(void)
 
     /* read the knobs */
     uint8_t k;
-    for (k = 0; k < 3; k++) {
+    for (k = 0; k < NUM_KNOBS; k++) {
       /* discard the lowest 2 bits from the ADC input to reduce noise
        * use an exponential moving average with alpha=0.25 to prevent
        * "dither" between values */
-      knob_t *knob = knobs+k;      
-      uint8_t input = adc_read_channel(k) >> 2;
+      knob_t *knob = knobs+k;
+
+      /* set the mux control line high when reading the last 3 channels */
+      uint8_t ch = k;
+      if (k >= 6) {
+        k -= 3;
+        gpio1_set_pin_high(8);
+      } else {
+        gpio1_set_pin_low(8);
+      }
+
+      uint8_t input = adc_read_channel(ch) >> 2;
       int16_t delta = input - knob->value;
       uint8_t newval = knob->value + (delta >> 2);
       if (newval != knob->value) {
@@ -194,67 +216,13 @@ int main(void)
         knob->value = newval;
       }
     }
-
-#if 0
-    for (ch = 1; ch < 2; ch++) {
-      // exponential moving average with alpha=0.25
-      uint16_t input = adc_read_channel(ch) >> 2;
-      int16_t delta = input - lastval;
-      uint16_t newval = lastval + (delta >> 2);
-      if (newval != lastval) {
-        outhex16(newval);
-        uart_send_byte('\n');
-        lastval = newval;
-      }
-    }
-
-    /* read the knobs */
-/*    int ch;
-    for (ch = 0; ch < NUM_KNOBS; ch++) {
-      knob_t *knob = knobs+ch;
-      knob->accum += adc_read_channel(ch);
-      knob->samples++;
-      if (knob->samples == 4) {
-        uint16_t newval = knob->accum >> 2;
-        knob->accum = 0;
-        knob->samples = 0;
-        if (newval != knob->last_value) {
-          knob->update_fn(newval);
-          knob->last_value = newval;
-        }
-      }
-    }*/
-
-    int ch;
-    for (ch = 3/*0*/; ch < NUM_KNOBS; ch++) {
-      uint32_t newval = adc_read_channel(ch);
-      newval >>= 10 - knobs[ch].bits;
-      if (newval != knobs[ch].last_value) {
-        //knobs[ch].update_fn(newval);
-        knobs[ch].last_value = newval;
-      }
-    }
-
-    /* read the button */
-    uint16_t button = gpio_pin(GPIO0, 1);
-    if (!button) {
-      buttoncount++;
-      if (buttoncount == 253) {
-        button_pressed();
-      }
-      if (buttoncount >= 254) {
-        buttoncount = 254;
-      }
-    } else {
-      buttoncount = 0;
-    }
-#endif
   }
-
   return 0;
 }
 
 
+
+/***** MIDI *****/
 static volatile uint8_t midibuf[3];
 static volatile uint8_t midibytesleft = 0;
 static inline void handle_midi_command(void)
@@ -329,6 +297,5 @@ void UART_IRQHandler(void)
 
 void HardFault_Handler(void)
 {
-  gpio1_set_pin_high(9);
   while (1) {}
 }
