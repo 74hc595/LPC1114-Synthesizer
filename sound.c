@@ -101,11 +101,11 @@ static byte_queue_t playing_notes = {0};
  * If true, frequencies will be updated on the next tick of the low-frequency timer. */
 static volatile _Bool freq_needs_update = false;
 
-/* Envelope attack rate. */
-static uint16_t attack_rate = 0;
+/* Envelope attack time constant. */
+static uint16_t attack = 0;
 
-/* Envelope release rate. */
-static uint16_t release_rate = 0;
+/* Envelope release time constant. */
+static uint16_t release = 0;
 
 /* Envelope value. Only the upper byte is used for amplitude. */
 static uint16_t envelope = 0;
@@ -155,10 +155,6 @@ static inline void oscillator_set_sawtooth(int oscnum)
 
 void sound_init(void)
 {
-  sustain_mode = SUSTAIN_ON;
-  attack_rate = 0xFFFF;
-  release_rate = 0xFFFF;
-  echoes = 0;
 }
 
 
@@ -355,13 +351,13 @@ void set_glide(glide_t glide)
 
 void set_attack(uint8_t val)
 {
-  attack_rate = envtable[val];
+  attack = envtable[val];
 }
 
 
 void set_release(uint8_t val)
 {
-  release_rate = envtable[val];
+  release = envtable[val];
 }
 
 
@@ -393,54 +389,56 @@ void TIMER32_0_IRQHandler(void)
     }
   }
 
-  /* Update envelope */
-  int32_t new_envelope = envelope;
+  /* Update envelope
+   * Attack and release have exponential responses
+   * When echo or repeat is enabled, start the retrigger well before the envelope
+   * reaches zero to quicken the gaps between triggers */
+  int32_t delta = 0;
+  uint16_t silent_threshold = (echoes_left || sustain_mode == SUSTAIN_REPEAT) ? 0x1000 : 0x00FF;
   switch (envelope_stage) {
     case ENV_OFF:
-      new_envelope = 0;
+      envelope = 0;
       break;
     case ENV_ATTACK:
       echoes_left = echoes;
-      new_envelope += attack_rate;
-      if (new_envelope >= 0xFFFF) {
-        new_envelope = 0xFFFF;
+      delta = ((0xFFFF-envelope)*attack) >> 15;
+      envelope += delta;
+      /* phase ends once rise completes */
+      if (delta == 0 || envelope >= 0xFF00) {
+        envelope = 0xFFFF;
         switch (sustain_mode) {
-          case SUSTAIN_ON:
-            envelope_stage = ENV_SUSTAIN;
-            break;
-          case SUSTAIN_OFF:
-            envelope_stage = ENV_RELEASE;
-            break;
-          case SUSTAIN_REPEAT:
-            envelope_stage = ENV_REPEAT;
-            break;
+          case SUSTAIN_ON: envelope_stage = ENV_SUSTAIN; break;
+          case SUSTAIN_OFF: envelope_stage = ENV_RELEASE; break;
+          case SUSTAIN_REPEAT: envelope_stage = ENV_REPEAT; break;
         }
       }
       break;
     case ENV_SUSTAIN:
-      new_envelope = 0xFFFF;
+      envelope = 0xFFFF;
       break;
     case ENV_RELEASE:
-      new_envelope -= release_rate;
-      if (new_envelope < 0) {
+      delta = (envelope*release) >> 15;
+      envelope -= delta;
+      /* phase ends once fall completes */
+      if (delta == 0 || envelope <= silent_threshold) {
         if (!echoes_left) {
-          new_envelope = 0;
+          envelope = 0;
           envelope_stage = ENV_OFF;
         } else {
           echoes_left--;
-          new_envelope = 0xFFFF;
+          envelope = 0xFFFF;
         }
       }
       break;
     case ENV_REPEAT:
-      new_envelope -= release_rate;
-      if (new_envelope < 0) {
-        new_envelope = 0;
+      delta = (envelope*release) >> 15;
+      envelope -= delta;
+      if (delta == 0 || envelope <= silent_threshold) {
+        envelope = 0;
         envelope_stage = ENV_ATTACK;
       }
       break;
   }
-  envelope = new_envelope;
 
   uint8_t vol = envelope >> (8+echoes-echoes_left);
   TMR_TMR16B1MR0 = 255-vol;
