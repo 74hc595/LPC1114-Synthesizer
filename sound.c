@@ -23,16 +23,14 @@ typedef struct
  */
 typedef struct
 {
-  uint16_t __pad1[3];
-  uint8_t volume;
-  uint8_t __pad2;
+  uint16_t __pad1[5];
   union {
-    uint16_t waveform_code[4];
+    uint16_t waveform_code[3];
     struct {
       uint16_t __pad3;
       uint8_t duty;
       uint8_t __pad4;
-      uint16_t __pad5[2];
+      uint16_t __pad5[1];
     };
   };
   uint16_t __pad6;
@@ -139,8 +137,7 @@ static inline void oscillator_set_pulse(int oscnum, uint8_t duty)
 {
   osc_update_base[oscnum].waveform_code[0] = 0x15d2;      /* asr r2, #23 */
   osc_update_base[oscnum].waveform_code[1] = 0x3a00|duty; /* sub r2, #<duty> */ 
-  osc_update_base[oscnum].waveform_code[2] = 0x0409;      /* lsl r1, #16 */
-  osc_update_base[oscnum].waveform_code[3] = 0x404a;      /* eor r2, r1 */
+  osc_update_base[oscnum].waveform_code[2] = 0x404a;      /* eor r2, r1 */
 }
 
 
@@ -150,32 +147,10 @@ static inline void oscillator_set_pulse(int oscnum, uint8_t duty)
  */
 static inline void oscillator_set_sawtooth(int oscnum)
 {
-#if 0
-  osc_update_base[oscnum].waveform_code[0] = 0x4252; /* neg r2, 2 */
-  osc_update_base[oscnum].waveform_code[1] = 0x13d2; /* asr r2, #15 */
-  osc_update_base[oscnum].waveform_code[2] = 0x434a; /* mul r2, r1 */ 
-  osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */   
-#else
-  osc_update_base[oscnum].waveform_code[0] = 0x13d2; /* asr r2, #15 */
-  osc_update_base[oscnum].waveform_code[1] = 0x434a; /* mul r2, r1 */ 
-  osc_update_base[oscnum].waveform_code[2] = 0x46c0; /* nop */   
-  osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */
-#endif
+  osc_update_base[oscnum].waveform_code[0] = 0x11d2; /* asr r2, #15 */
+  osc_update_base[oscnum].waveform_code[1] = 0x46c0; /* nop */
+  osc_update_base[oscnum].waveform_code[2] = 0x46c0; /* nop */
 }
-
-
-/**
- * Modifies the waveform generation code to generate a ramp (reverse sawtooth)
- * wave for the specified voice.
- */
-static inline void oscillator_set_lofi_sawtooth(int oscnum)
-{
-  osc_update_base[oscnum].waveform_code[0] = 0x1792; /* asr r2, #30 */
-  osc_update_base[oscnum].waveform_code[1] = 0x03d2; /* lsl r2, #15 */
-  osc_update_base[oscnum].waveform_code[2] = 0x434a; /* mul r2, r1 */ 
-  osc_update_base[oscnum].waveform_code[3] = 0x46c0; /* nop */
-}
-
 
 
 void sound_init(void)
@@ -210,24 +185,7 @@ void sound_set_sawtooth(uint8_t oscmask)
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
     if (oscmask & (1 << i)) {
-//      /* is the oscillator already in sawtooth mode? if not, switch */
-//      if (osc_update_base[i].waveform_code[0] != 0x13d2) {
         oscillator_set_sawtooth(i);
-//      }
-    }
-  }
-}
-
-
-void sound_set_lofi_sawtooth(uint8_t oscmask)
-{
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    if (oscmask & (1 << i)) {
-//      /* is the oscillator already in sawtooth mode? if not, switch */
-//      if (osc_update_base[i].waveform_code[0] != 0x13d2) {
-        oscillator_set_lofi_sawtooth(i);
-//      }
     }
   }
 }
@@ -484,11 +442,7 @@ void TIMER32_0_IRQHandler(void)
   }
   envelope = new_envelope;
 
-  int i;
   uint8_t vol = envelope >> (8+echoes-echoes_left);
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    osc_update_base[i].volume = 255;
-  }
   TMR_TMR16B1MR0 = 255-vol;
 
   /* Update oscillator frequencies */

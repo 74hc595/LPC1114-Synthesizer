@@ -13,6 +13,16 @@ osc_update_base:
 	ldmia	r0, {r0, r1, r2}
 	add	r2, r1
 	stmia	r0!, {r2}
+	mov	r1, #255		@ precompute the constant 0x00FF0000
+	lsl	r1, #16			@ TODO: this is suboptimal
+@ ----- begin modifiable code
+	asr	r2, #23
+	sub	r2, #0			@ subtract duty cycle to get a bitmask
+	eor	r2, r1			@ leaves junk in the lower bits but it's too insignificant to matter
+@ ----- end modifiable code
+	add	r3, r2
+
+#if 0
 	mov	r1, #0			@ volume
 @ ----- begin modifiable code
 	asr	r2, #23
@@ -21,28 +31,16 @@ osc_update_base:
 	eor	r2, r1
 @ ----- end modifiable code
 	add	r3, r2
+#endif
 .endr
 
 
 @ When sawtooth wave is selected, the "modifiable code" sections
 @ will be replaced with the following instructions:
-@	neg	r2, r2
-@	asr	r2, #15
-@	mul	r2, r1
+@	asr	r2, #7
 @	nop
 @	nop
 
-@ craziness:
-@	asr	r2, #23
-@	mul	r2, r2
-@	lsl	r2, #1
-@	mul	r2, r1
-
-@ lo-fi sawtooth:
-@	asr	r2, #30
-@	lsl	r2, #15
-@	mul	r2, r1
-@	nop
 
 #if 0
 @ Chamberlin state-variable filter

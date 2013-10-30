@@ -189,8 +189,9 @@ int main(void)
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  while (1) {
+  note_on(69);
 
+  while (1) {
     /* read the knobs */
     uint8_t k;
     for (k = 0; k < NUM_KNOBS; k++) {
