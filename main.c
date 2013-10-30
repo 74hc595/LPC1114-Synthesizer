@@ -173,10 +173,10 @@ int main(void)
   gpio1_set_pin_low(8);
 
   /* set up the knobs */
-  knobs[0].update_fn = update_waveform;
+  knobs[0].update_fn = update_release;
   knobs[1].update_fn = update_detune;
-  knobs[2].update_fn = update_attack;
-  knobs[3].update_fn = update_release;
+  knobs[2].update_fn = update_waveform;
+  knobs[3].update_fn = update_attack;
 
   sound_init();
   pwm_init(254);
@@ -189,8 +189,6 @@ int main(void)
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  note_on(69);
-
   while (1) {
     /* read the knobs */
     uint8_t k;
