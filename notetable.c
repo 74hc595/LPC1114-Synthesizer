@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-uint32_t notetable[128] = {
+const uint32_t notetable[128] = {
   140459,	/* 0	8.18 Hz (error: -0.00001 Hz), C-1 */
   148811,	/* 1	8.66 Hz (error: -0.00002 Hz), C#-1 */
   157660,	/* 2	9.18 Hz (error: -0.00000 Hz), D-1 */

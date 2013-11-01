@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-uint16_t envtable[256] = {
+const uint16_t envtable[256] = {
   0, /* 0 sec */
   27615, /* 0.008 sec */
   24585, /* 0.012 sec */

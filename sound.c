@@ -2,8 +2,8 @@
 #include "hardware.h"
 #include <stdbool.h>
 
-extern uint32_t notetable[128];
-extern uint16_t envtable[256];
+extern const uint32_t notetable[128];
+extern const uint16_t envtable[256];
 
 /**
  * Oscillator state.
