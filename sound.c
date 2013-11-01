@@ -4,6 +4,8 @@
 
 extern const uint32_t notetable[128];
 extern const uint16_t envtable[256];
+extern volatile uint32_t filter_cutoff;
+extern volatile uint32_t filter_q;
 
 /**
  * Oscillator state.
@@ -358,6 +360,18 @@ void set_attack(uint8_t val)
 void set_release(uint8_t val)
 {
   release = envtable[val];
+}
+
+
+void set_filter_cutoff(uint32_t val)
+{
+  filter_cutoff = val;
+}
+
+
+void set_filter_resonance(uint32_t val)
+{
+  filter_q = val;
 }
 
 

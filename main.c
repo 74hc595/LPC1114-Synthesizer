@@ -4,7 +4,7 @@
 /* if true, use the UART for debug output instead of MIDI */
 #define DEBUG_LOGGING 0
 
-#define NUM_KNOBS 4
+#define NUM_KNOBS 8
 typedef struct
 {
   uint8_t value;
@@ -104,6 +104,51 @@ static void update_release(uint8_t knobval)
 }
 
 
+static void update_cutoff(uint8_t knobval)
+{
+#if DEBUG_LOGGING
+  uart_send_byte('c');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
+  set_filter_cutoff(knobval << 2);
+}
+
+
+static void update_resonance(uint8_t knobval)
+{
+#if DEBUG_LOGGING
+  uart_send_byte('q');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
+  set_filter_resonance((255-knobval) << 4);
+}
+
+
+static void update_cutoff_mod_amount(uint8_t knobval)
+{
+#if DEBUG_LOGGING
+  uart_send_byte('c');
+  uart_send_byte('m');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
+}
+
+
+static void update_lfo_rate(uint8_t knobval)
+{
+#if DEBUG_LOGGING
+  uart_send_byte('l');
+  uart_send_byte('r');
+  outhex8(knobval);
+  uart_send_byte('\n');
+#endif
+}
+
+
+
 static volatile uint8_t chprog_active = 0;
 static uint8_t chprog_oscnum = 0;
 static int8_t chprog_notes[NUM_OSCILLATORS];
@@ -177,6 +222,10 @@ int main(void)
   knobs[1].update_fn = update_detune;
   knobs[2].update_fn = update_waveform;
   knobs[3].update_fn = update_attack;
+  knobs[4].update_fn = update_cutoff;
+  knobs[5].update_fn = update_resonance;
+  knobs[6].update_fn = update_cutoff_mod_amount;
+  knobs[7].update_fn = update_lfo_rate;
 
   sound_init();
   pwm_init(254);
@@ -188,6 +237,8 @@ int main(void)
 #else
   uart_init(BAUD(115200, 50000000));
 #endif
+  
+  //note_on(69);
   
   while (1) {
     /* read the knobs */
@@ -201,7 +252,7 @@ int main(void)
       /* set the mux control line high when reading the last 3 channels */
       uint8_t ch = k;
       if (k >= 6) {
-        k -= 3;
+        ch -= 3;
         gpio1_set_pin_high(8);
       } else {
         gpio1_set_pin_low(8);

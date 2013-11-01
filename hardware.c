@@ -5,7 +5,7 @@
 #include "hardware.h"
 
 /**
- * Starts the ADC (channels 0, 1, 2, and 3 only).
+ * Starts the ADC for all channels.
  */
 void adc_init(void)
 {
@@ -26,6 +26,12 @@ void adc_init(void)
 
   /* Set AD3 to analog input */
   IOCON_JTAG_nTRST_PIO1_2 = IOCON_JTAG_nTRST_PIO1_2_FUNC_AD3;
+
+  /* Set AD4 to analog input */
+  IOCON_SWDIO_PIO1_3 = IOCON_SWDIO_PIO1_3_FUNC_AD4;
+
+  /* Set AD5 to analog input */
+  IOCON_PIO1_4 = IOCON_PIO1_4_FUNC_AD5;
 
   /* Set channel and clock divider but don't start */
   ADC_AD0CR = (ADC_AD0CR_SEL_AD0 |      /* SEL=1,select channel 0 on ADC0 */

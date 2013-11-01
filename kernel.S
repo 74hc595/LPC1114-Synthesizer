@@ -42,7 +42,7 @@ osc_update_base:
 @	nop
 
 
-#if 0
+#if 1
 @ Chamberlin state-variable filter
 @ L = D2 + F1*D1
 @ H = I - L - Q1*D1
@@ -54,7 +54,7 @@ osc_update_base:
 @ I (input) is a 26-bit binary fraction and must be adjusted
 filter:
 @ shift oscillator output down to 20 bits for input to filter
-	asr	r3, #6
+	asr	r3, #8
 @ compute lowpass output
 	ldmia	r0, {r0, r1, r2}	@ get D2, frequency, D1
 	mul	r1, r2			@ D1*F1; 20-bit signed * 12-bit unsigned
@@ -94,7 +94,7 @@ filter:
 dacout:
 	adr	r0, output_port
 	ldmia	r0, {r0, r1, r2}
-	lsr	r3, #15			@ shift down to 12 bits for DAC
+@	lsr	r3, #15			@ shift down to 12 bits for DAC
 	add	r3, r1			@ convert 2's complement to offset
 	orr	r3, r2			@ set /GA and /SHDN bits
 	strh	r3, [r0]		@ send to DAC
