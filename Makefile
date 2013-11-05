@@ -1,5 +1,5 @@
 OUTFILE = wave
-OBJS = kernel.o sound.o notetable.o envtable.o hardware.o main.o
+OBJS = kernel.o notetable.o envtable.o cutofftable.o hardware.o sound.o main.o
 
 ##########################################################################
 # User configuration and firmware specific object files	

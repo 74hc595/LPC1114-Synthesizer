@@ -1,9 +1,8 @@
 #include "sound.h"
 #include "hardware.h"
+#include "tables.h"
 #include <stdbool.h>
 
-extern const uint32_t notetable[128];
-extern const uint16_t envtable[256];
 extern volatile uint32_t filter_cutoff;
 extern volatile uint32_t filter_q;
 
@@ -363,9 +362,9 @@ void set_release(uint8_t val)
 }
 
 
-void set_filter_cutoff(uint32_t val)
+void set_filter_cutoff(uint8_t val)
 {
-  filter_cutoff = val;
+  filter_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
 }
 
 

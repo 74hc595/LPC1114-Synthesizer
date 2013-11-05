@@ -49,16 +49,16 @@ osc_update_base:
 @ B = F1*H + D1
 @ D1 = B
 @ D2 = L
-@ L, H, B, D1, and D2 are signed 20-bit binary fractions
-@ F1 and Q1 are unsigned 12-bit fixed point numbers in the range [0, 2)
-@ I (input) is a 26-bit binary fraction and must be adjusted
+@ L, H, B, D1, and D2 are signed 16-bit binary fractions
+@ F1 and Q1 are unsigned 16-bit fixed point numbers in the range [0, 2)
+@ I (input) is a 28-bit binary fraction and must be adjusted
 filter:
 @ shift oscillator output down to 20 bits for input to filter
-	asr	r3, #8
+	asr	r3, #12
 @ compute lowpass output
 	ldmia	r0, {r0, r1, r2}	@ get D2, frequency, D1
-	mul	r1, r2			@ D1*F1; 20-bit signed * 12-bit unsigned
-	asr	r1, #11			@ shift result back to 20-bit signed
+	mul	r1, r2			@ D1*F1; 16-bit signed * 16-bit unsigned
+	asr	r1, #16			@ shift result back to 16-bit signed
 	add	r0, r1			@ r0 = L = D2 + D1*F1
 	mov	r12, r0			@ save L
 @ r12 now contains lowpass output
@@ -66,16 +66,16 @@ filter:
 	sub	r3, r0			@ r3 = H = I - L
 	adr	r0, _filter_cutoff
 	ldmia	r0, {r0, r1, r2}	@ get frequency, D1, Q
-	mul	r2, r1			@ D1*Q1; 20-bit signed * 12-bit unsigned
-	asr	r2, #11			@ shift result back to 20-bit signed
+	mul	r2, r1			@ D1*Q1; 16-bit signed * 16-bit unsigned
+	asr	r2, #15			@ shift result back to 16-bit signed
 	sub	r3, r2			@ r3 = H = I - L - D1*Q1
 @ r12 = lowpass output
 @ r3  = highpass output
 @ r0  = frequency
 @ r1  = D1 
 @ compute bandpass output
-	mul	r0, r3			@ r0 = B = H*F1; 20-bit signed * 12-bit unsigned
-	asr	r0, #11			@ shift result back to 20-bit signed
+	mul	r0, r3			@ r0 = B = H*F1; 16-bit signed * 16-bit unsigned
+	asr	r0, #16			@ shift result back to 16-bit signed
 	add	r0, r1			@ r0 = B = H*F1 + D1
 	mov	r1, r12			@ bring back lowpass output
 @ r1 = lowpass output
@@ -87,7 +87,7 @@ filter:
 	str	r0, [r2, #8]		@ D1 = B
 @ choose an output
 	mov	r3, r1			@ modifiable
-	lsr	r3, #8			@ shift down to 12-bit signed for DAC output
+	lsr	r3, #4			@ shift down to 12-bit signed for DAC output
 #endif
 
 @ Send sample in r3 to DAC
@@ -124,11 +124,11 @@ osc3ph:	.word	0
 filter_d2:
 	.word	0
 _filter_cutoff:
-	.word	0x800			@ 12-bit unsigned, in the range [0, 2)
+	.word	0x8000			@ 16-bit unsigned, in the range [0, 2)
 filter_d1:
 	.word	0
 filter_q:
-	.word	0x400			@ 12-bit unsigned, in the range [0, 2)
+	.word	0x8000			@ 16-bit unsigned, in the range [0, 2)
 
 @ constants used for DAC output
 output_port:

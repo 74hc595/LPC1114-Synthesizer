@@ -111,7 +111,7 @@ static void update_cutoff(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
-  set_filter_cutoff(knobval << 2);
+  set_filter_cutoff(knobval);
 }
 
 
@@ -122,7 +122,7 @@ static void update_resonance(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
-  set_filter_resonance((255-knobval) << 4);
+  set_filter_resonance(knobval << 8);
 }
 
 
@@ -238,7 +238,7 @@ int main(void)
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  //note_on(69);
+  note_on(69);
   
   while (1) {
     /* read the knobs */

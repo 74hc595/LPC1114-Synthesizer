@@ -44,8 +44,8 @@ void set_attack(uint8_t val);
 /* Sets release rate. (same as attack) */
 void set_release(uint8_t val);
 
-/* Sets filter cutoff to the given 12-bit value. */
-void set_filter_cutoff(uint32_t val);
+/* Sets filter cutoff to the frequency of the specified MIDI note. */
+void set_filter_cutoff(uint8_t val);
 
 /* Sets filter resonance to the given 12-bit value. */
 void set_filter_resonance(uint32_t val);
