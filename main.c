@@ -238,7 +238,7 @@ int main(void)
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  note_on(69);
+  //note_on(69);
   
   while (1) {
     /* read the knobs */

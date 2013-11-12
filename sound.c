@@ -126,8 +126,11 @@ static uint8_t echoes_left = 0;
 static env_stage_t envelope_stage = ENV_OFF;
 
 /* Filter parameters prior to correction */
-static uint32_t uncorrected_cutoff = 0;
+static int32_t cutoff_pitch = 0; /* fixed point note number */
 static uint32_t uncorrected_q = 0;
+
+/* Whether the filter cutoff frequency tracks the keyboard */
+static _Bool keyboard_tracking = false;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -161,7 +164,7 @@ static inline void oscillator_set_sawtooth(int oscnum)
 
 void sound_init(void)
 {
-  uncorrected_cutoff = 0x10000;
+  cutoff_pitch = NUM_CUTOFF_ENTRIES << 9;
   uncorrected_q = 0x20000;
   filter_needs_update = true;
 }
@@ -372,7 +375,8 @@ void set_release(uint8_t val)
 
 void set_filter_cutoff(uint8_t val)
 {
-  uncorrected_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
+  cutoff_pitch = val << 9;
+//  uncorrected_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
   filter_needs_update = true;
 }
 
@@ -470,24 +474,48 @@ void TIMER32_0_IRQHandler(void)
   if (freq_needs_update) {
     freq_needs_update = false;
     update_frequencies();
+    if (keyboard_tracking) {
+      filter_needs_update = true;
+    }
   }
 
   /* Update filter parameters */
   if (filter_needs_update) {
     filter_needs_update = false;
+
+    /* Convert cutoff pitch from a note number to a parameter value.
+     * Add keyboard tracking; middle C (note 60) is used as the base note. */
+    int32_t cutoff = cutoff_pitch;
+    if (keyboard_tracking) {
+      cutoff += current_pitch - (60 << 9);
+    }
+
+    uint32_t fc = 0;
+    if (cutoff < 0) {
+      fc = 0;
+    } else if (cutoff >= ((NUM_CUTOFF_ENTRIES-1) << 9)) {
+      fc = 0xFFFF;
+    } else {
+      /* Interpolate between entries in the cutoff table */
+      uint8_t basenote = cutoff >> 9;
+      uint32_t fracnote = cutoff & ((1 << 9)-1);
+      uint16_t basefreq = cutofftable[basenote];
+      uint16_t delta = (cutofftable[basenote+1]-basefreq) >> 9;
+      fc = basefreq + fracnote*delta;
+    }
     
     /* Apply correction to the filter parameters to prevent instability
      * http://courses.cs.washington.edu/courses/cse490s/11au/Readings/Digital_Sound_Generation_2.pdf
      * Q = min(Qc, 2-Fc)
      * F = Fc*(1.75 - 0.75*Q*Fc)
      * (note: the document suggests F=Fc*(1.85-0.85*Q*Fc), but multiplying by 0.75 is easier) */
-    uint32_t two_minus_fc = 0x20000-uncorrected_cutoff;
+    uint32_t two_minus_fc = 0x20000-fc;
     filter_q = (uncorrected_q < two_minus_fc) ? uncorrected_q : two_minus_fc;
 
-    uint32_t q_fc = (uncorrected_q>>1)*(uncorrected_cutoff>>1); /* multiply Q and Fc without overflowing */
+    uint32_t q_fc = (uncorrected_q>>1)*(fc>>1); /* multiply Q and Fc without overflowing */
     q_fc -= q_fc >> 2;  /* multiply by 0.75 (subtract 1/4) */
     q_fc >>= 14;
     q_fc = 0x1c000 - q_fc; /* subtract from 1.75 */
-    filter_cutoff = ((uncorrected_cutoff>>1)*(q_fc>>1)) >> 14;
+    filter_cutoff = ((fc>>1)*(q_fc>>1)) >> 14;
   }
 }
