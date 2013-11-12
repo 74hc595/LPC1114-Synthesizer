@@ -15,14 +15,22 @@ def freq_to_note(freq):
   # inverse of the previous equation, according to Wolfram Alpha
   return int(floor(12.0*log((4.0/55.0)*2**(0.75)*freq)/log(2)))
 
-max_note = freq_to_note(NYQUIST)
+
+values = []
+i = 0
+while True:
+  freq = note_to_freq(i)
+  cutoff = 2.0*sin(pi*freq/SAMPLE_RATE)
+  if cutoff > 1.0:
+    break
+  binary = int(round(cutoff*(1<<CUTOFF_BITS)))
+  values.append(binary)
+  i += 1
+
 
 print """#include "tables.h"
 /* %d entries */
-const uint16_t cutofftable[NUM_CUTOFF_ENTRIES] = {""" % (max_note+1)
-for i in range(0,max_note+1):
-  freq = note_to_freq(i)
-  cutoff = 2.0*sin(pi*freq/SAMPLE_RATE) # with correction factor, according to Chamberlin p. 492
-  binary = int(round(cutoff*(1<<(CUTOFF_BITS-1))))
-  print "  %d," % binary
+const uint16_t cutofftable[NUM_CUTOFF_ENTRIES] = {""" % i
+for val in values:
+  print "  %d," % val
 print "};"

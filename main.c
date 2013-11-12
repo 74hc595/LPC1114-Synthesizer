@@ -122,7 +122,7 @@ static void update_resonance(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
-  set_filter_resonance(knobval << 8);
+  set_filter_resonance((0xFC-knobval) << 9);
 }
 
 

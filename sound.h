@@ -47,7 +47,8 @@ void set_release(uint8_t val);
 /* Sets filter cutoff to the frequency of the specified MIDI note. */
 void set_filter_cutoff(uint8_t val);
 
-/* Sets filter resonance to the given 12-bit value. */
+/* Sets filter resonance to the given value between 0 ("infinite" resonance)
+ * and 0x20000 ("no" resonance). */
 void set_filter_resonance(uint32_t val);
 
 #endif

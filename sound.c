@@ -101,6 +101,7 @@ static byte_queue_t playing_notes = {0};
 /* Indicates that the oscillator frequencies need to be recomputed.
  * If true, frequencies will be updated on the next tick of the low-frequency timer. */
 static volatile _Bool freq_needs_update = false;
+static volatile _Bool filter_needs_update = false;
 
 /* Envelope attack time constant. */
 static uint16_t attack = 0;
@@ -123,6 +124,10 @@ static uint8_t echoes_left = 0;
 
 /* Envelope stage. */
 static env_stage_t envelope_stage = ENV_OFF;
+
+/* Filter parameters prior to correction */
+static uint32_t uncorrected_cutoff = 0;
+static uint32_t uncorrected_q = 0;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -148,7 +153,7 @@ static inline void oscillator_set_pulse(int oscnum, uint8_t duty)
  */
 static inline void oscillator_set_sawtooth(int oscnum)
 {
-  osc_update_base[oscnum].waveform_code[0] = 0x11d2; /* asr r2, #15 */
+  osc_update_base[oscnum].waveform_code[0] = 0x1092; /* asr r2, #2 */
   osc_update_base[oscnum].waveform_code[1] = 0x46c0; /* nop */
   osc_update_base[oscnum].waveform_code[2] = 0x46c0; /* nop */
 }
@@ -156,6 +161,9 @@ static inline void oscillator_set_sawtooth(int oscnum)
 
 void sound_init(void)
 {
+  uncorrected_cutoff = 0x10000;
+  uncorrected_q = 0x20000;
+  filter_needs_update = true;
 }
 
 
@@ -364,13 +372,15 @@ void set_release(uint8_t val)
 
 void set_filter_cutoff(uint8_t val)
 {
-  filter_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
+  uncorrected_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
+  filter_needs_update = true;
 }
 
 
 void set_filter_resonance(uint32_t val)
 {
-  filter_q = val;
+  uncorrected_q = val;
+  filter_needs_update = true;
 }
 
 
@@ -460,5 +470,24 @@ void TIMER32_0_IRQHandler(void)
   if (freq_needs_update) {
     freq_needs_update = false;
     update_frequencies();
+  }
+
+  /* Update filter parameters */
+  if (filter_needs_update) {
+    filter_needs_update = false;
+    
+    /* Apply correction to the filter parameters to prevent instability
+     * http://courses.cs.washington.edu/courses/cse490s/11au/Readings/Digital_Sound_Generation_2.pdf
+     * Q = min(Qc, 2-Fc)
+     * F = Fc*(1.75 - 0.75*Q*Fc)
+     * (note: the document suggests F=Fc*(1.85-0.85*Q*Fc), but multiplying by 0.75 is easier) */
+    uint32_t two_minus_fc = 0x20000-uncorrected_cutoff;
+    filter_q = (uncorrected_q < two_minus_fc) ? uncorrected_q : two_minus_fc;
+
+    uint32_t q_fc = (uncorrected_q>>1)*(uncorrected_cutoff>>1); /* multiply Q and Fc without overflowing */
+    q_fc -= q_fc >> 2;  /* multiply by 0.75 (subtract 1/4) */
+    q_fc >>= 14;
+    q_fc = 0x1c000 - q_fc; /* subtract from 1.75 */
+    filter_cutoff = ((uncorrected_cutoff>>1)*(q_fc>>1)) >> 14;
   }
 }
