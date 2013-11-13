@@ -18,6 +18,14 @@ typedef enum {
   NUM_GLIDE_PRESETS
 } glide_t;
 
+typedef enum {
+  LFO_TRIANGLE,
+  LFO_SAWTOOTH,
+  LFO_SQUARE,
+  LFO_RANDOM,
+  NUM_LFO_SHAPES
+} lfo_shape_t;
+
 void sound_init(void);
 
 void sound_set_duty_cycle(uint8_t val, uint8_t oscmask);
@@ -50,5 +58,15 @@ void set_filter_cutoff(uint8_t val);
 /* Sets filter resonance to the given value between 0 ("infinite" resonance)
  * and 0x20000 ("no" resonance). */
 void set_filter_resonance(uint32_t val);
+
+/* Sets cutoff frequency modulation amount, in fractional semitones.
+ * Modulation amount may be positive or negative. */
+void set_filter_cutoff_mod_amount(int16_t semitones);
+
+/* Sets LFO rate. The scale is exponential. */
+void set_lfo_rate(uint8_t val);
+
+/* Sets LFO shape. */
+void set_lfo_shape(lfo_shape_t shape);
 
 #endif

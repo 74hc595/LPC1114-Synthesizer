@@ -11,3 +11,6 @@ extern const uint32_t notetable[128];
 #define NUM_CUTOFF_ENTRIES 148
 extern const uint16_t cutofftable[NUM_CUTOFF_ENTRIES];
 
+/* Map from knob position to LFO rate */
+extern const uint16_t lfofreqtable[256];
+

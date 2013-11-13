@@ -129,14 +129,36 @@ static env_stage_t envelope_stage = ENV_OFF;
 static int32_t cutoff_pitch = 0; /* fixed point note number */
 static uint32_t uncorrected_q = 0;
 
-/* Whether the filter cutoff frequency tracks the keyboard */
+/* Whether the filter cutoff frequency tracks the keyboard. */
 static _Bool keyboard_tracking = false;
+
+/* Cutoff modulation strength, as a fixed point note number. */
+static int16_t cutoff_mod_amount = 0;
+
+/* LFO state */
+static uint16_t lfo_phase = 0;
+static uint16_t lfo_freq = 0;
+static uint16_t lfo_value = 0;
+static lfo_shape_t lfo_shape = 0;
+static _Bool lfo_affects_cutoff = true;
+static _Bool lfo_affects_pitch = false;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
 
 
 #define TEST_FREQ 2000000
+
+/**
+ * Generates a pseudorandom 8-bit value.
+ */ 
+static inline uint8_t rand8(void)
+{
+  static int32_t state = 1;
+  state = (1103515245*state + 12345) & 0x7FFFFFFF;
+  return (state & 0xFF);
+}
+
 
 /**
  * Modifies the waveform generation code to generate a pulse wave for the
@@ -164,6 +186,7 @@ static inline void oscillator_set_sawtooth(int oscnum)
 
 void sound_init(void)
 {
+  lfo_shape = LFO_TRIANGLE;
   cutoff_pitch = NUM_CUTOFF_ENTRIES << 9;
   uncorrected_q = 0x20000;
   filter_needs_update = true;
@@ -286,6 +309,7 @@ void note_on(uint8_t notenum)
   if (playing_notes.count == 1 || (sustain_mode == SUSTAIN_OFF)) {
     int i;
     current_pitch = dest_pitch;
+    lfo_phase = 0;
     if (envelope_stage == ENV_OFF) {
       for (i = 0; i < NUM_OSCILLATORS; i++) {
         oscillators[i].phase = 0;
@@ -388,6 +412,25 @@ void set_filter_resonance(uint32_t val)
 }
 
 
+void set_filter_cutoff_mod_amount(int16_t semitones)
+{
+  cutoff_mod_amount = semitones;
+  filter_needs_update = true;
+}
+
+
+void set_lfo_rate(uint8_t val)
+{
+  lfo_freq = lfofreqtable[val];
+}
+
+
+void set_lfo_shape(lfo_shape_t shape)
+{
+  lfo_shape = shape;
+}
+
+
 /**
  * Update envelope, LFO, and glide.
  */
@@ -470,6 +513,49 @@ void TIMER32_0_IRQHandler(void)
   uint8_t vol = envelope >> (8+echoes-echoes_left);
   TMR_TMR16B1MR0 = 255-vol;
 
+  /* Update LFO */
+  if (lfo_freq > 0) {
+    uint32_t phase_before = lfo_phase;
+    lfo_phase += lfo_freq;
+
+    switch (lfo_shape) {
+      case LFO_TRIANGLE:
+        lfo_value = (lfo_phase << 1) ^ -(lfo_phase >> 15);
+        break;
+      case LFO_SAWTOOTH:
+        lfo_value = lfo_phase;
+        break;
+      case LFO_SQUARE:
+        lfo_value = -(lfo_phase >> 15);
+        break;
+      case LFO_RANDOM:
+      default:
+        /* Generate a new random value when the phase accumulator wraps */
+        if ((phase_before & (1<<15)) != (lfo_phase & (1<<15))) {
+          lfo_value = rand8() << 8;
+        }
+        break;
+    }
+
+    if (lfo_affects_cutoff) {
+      filter_needs_update = true;
+    }
+    if (lfo_affects_pitch) {
+      freq_needs_update = true;
+    }
+  }
+  /* When frequency is set to 0, reset the LFO state */
+  else if (lfo_value != 0) {
+    lfo_value = 0;
+    lfo_phase = 0;
+    if (lfo_affects_cutoff) {
+      filter_needs_update = true;
+    }
+    if (lfo_affects_pitch) {
+      freq_needs_update = true;
+    }
+  }
+
   /* Update oscillator frequencies */
   if (freq_needs_update) {
     freq_needs_update = false;
@@ -488,6 +574,12 @@ void TIMER32_0_IRQHandler(void)
     int32_t cutoff = cutoff_pitch;
     if (keyboard_tracking) {
       cutoff += current_pitch - (60 << 9);
+    }
+
+    /* Add LFO modulation */
+    if (lfo_affects_cutoff) {
+      int32_t mod_amount = lfo_value * cutoff_mod_amount;
+      cutoff += (mod_amount >> 16);
     }
 
     uint32_t fc = 0;

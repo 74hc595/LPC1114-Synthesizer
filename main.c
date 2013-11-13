@@ -134,6 +134,8 @@ static void update_cutoff_mod_amount(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
+  int8_t bipolarval = knobval-128;
+  set_filter_cutoff_mod_amount(bipolarval << 8);
 }
 
 
@@ -145,6 +147,7 @@ static void update_lfo_rate(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
+  set_lfo_rate(knobval);
 }
 
 
