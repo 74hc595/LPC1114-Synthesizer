@@ -13,10 +13,21 @@ typedef struct
 static knob_t knobs[NUM_KNOBS] = {{0}};
 
 
+#define NUM_SWITCHES  11
+typedef struct
+{
+  void (*pressed_fn)(char id);
+  void (*released_fn)(char id);
+  uint8_t state;
+  char id;
+} switch_t;
+static switch_t switches[NUM_SWITCHES] = {{0}};
+
+
 #if DEBUG_LOGGING
 /* for testing */
 static char hexchars[16] = "0123456789ABCDEF";
-static void outhex8(uint8_t x)
+void outhex8(uint8_t x)
 {
   uart_send_byte(hexchars[x >> 4]);
   uart_send_byte(hexchars[x & 0xF]);
@@ -151,6 +162,24 @@ static void update_lfo_rate(uint8_t knobval)
 }
 
 
+static void log_button_press(char id)
+{
+  uart_send_byte(id);
+  uart_send_byte(' ');
+  uart_send_byte('p');
+  uart_send_byte('\n');
+}
+
+
+static void log_button_release(char id)
+{
+  uart_send_byte(id);
+  uart_send_byte(' ');
+  uart_send_byte('r');
+  uart_send_byte('\n');
+}
+
+
 
 static volatile uint8_t chprog_active = 0;
 static uint8_t chprog_oscnum = 0;
@@ -209,8 +238,8 @@ int main(void)
    * FCCO = 2*P*FCLKOUT = 200MHz */
   cpu_pll_setup(SCB_PLLCTRL_MSEL_2, SCB_PLLCTRL_PSEL_2);
 
-  /* Allow use of PIO0_0 without resetting the CPU */
-  //IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
+  /* Enable pullup resistor on PIO0_1 */
+  IOCON_PIO0_1 = IOCON_PIO0_1_MODE_PULLUP;
 
   //cpu_enable_clkout();
   adc_init();
@@ -230,18 +259,44 @@ int main(void)
   knobs[6].update_fn = update_cutoff_mod_amount;
   knobs[7].update_fn = update_lfo_rate;
 
+  /* Switch mapping:
+   * 0  - glide
+   * 1  - cutoff modulation bit 0
+   * 2  - cutoff modulation bit 1
+   * 3  - pitch modulation bit 0
+   * 4  - pitch modulation bit 1
+   * 5  - envelope mode bit 0
+   * 6  - envelope mode bit 1
+   * 7  - LFO shape
+   * 8  - pitch modulation program
+   * 9  - chord program
+   * 10 - echo
+   */
+  int i;
+  for (i = 0; i < NUM_SWITCHES; i++) {
+    switches[i].id = 'A'+i;
+    switches[i].pressed_fn = log_button_press;
+    switches[i].released_fn = log_button_release;
+  }
+
   sound_init();
   pwm_init(254);
   systick_init(200);
   timer32_init(200000);
 
-#if !DEBUG_LOGGING
+#if 0//!DEBUG_LOGGING
   uart_init(BAUD(31250, 50000000));
 #else
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  //note_on(69);
+  /* Allow use of PIO0_0 without resetting the CPU
+   * We do this here because it seems like setting it at the
+   * start of main prevents reset from working after serial programming...
+   * oh well. */
+  IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
+
+  note_on(69);
   
   while (1) {
     /* read the knobs */
@@ -267,6 +322,21 @@ int main(void)
       if (newval != knob->value) {
         knob->update_fn(newval);
         knob->value = newval;
+      }
+    }
+
+    /* read the buttons/switches */
+    uint16_t input = SSP_SSP0DR >> 7;
+    input |= (gpio_pins(GPIO0, 0b11) << 9);
+    for (i = 0; i < NUM_SWITCHES; i++, input >>= 1) {
+      switch_t *sw = switches+i;
+      uint8_t state = !(input & 1);
+      if (state != sw->state) {
+        sw->state = state;
+        void (*handler)(char) = (state) ? sw->pressed_fn : sw->released_fn;
+        if (handler) {
+          handler(sw->id);
+        }
       }
     }
   }
