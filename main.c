@@ -184,6 +184,10 @@ static void env_mode_changed(void)
 
 static void echo_pressed(void)
 {
+  // for debugging
+  SCB_AIRCR = SCB_AIRCR_VECTKEY_VALUE | SCB_AIRCR_SYSRESETREQ;
+  while(1) {}
+
   uint8_t e = get_echoes();
   switch (e) {
     case 0: e = 1; break;
@@ -208,6 +212,20 @@ static void glide_pressed(void)
 {
   glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
   set_glide_preset(glide_preset);
+}
+
+
+static void cutoff_mod_changed(void)
+{
+  uint8_t val = switches[SW_CUTOFFMOD0].state | (switches[SW_CUTOFFMOD1].state << 1);
+  set_filter_cutoff_mod_sources(val);
+}
+
+
+static void pitch_mod_changed(void)
+{
+  uint8_t val = switches[SW_PITCHMOD0].state | (switches[SW_PITCHMOD1].state << 1);
+  set_pitch_mod_sources(val);
 }
 
 
@@ -294,6 +312,14 @@ int main(void)
   switches[SW_ENVMODE0].released_fn = env_mode_changed;
   switches[SW_ENVMODE1].pressed_fn = env_mode_changed;
   switches[SW_ENVMODE1].released_fn = env_mode_changed;
+  switches[SW_CUTOFFMOD0].pressed_fn = cutoff_mod_changed;
+  switches[SW_CUTOFFMOD0].released_fn = cutoff_mod_changed;
+  switches[SW_CUTOFFMOD1].pressed_fn = cutoff_mod_changed;
+  switches[SW_CUTOFFMOD1].released_fn = cutoff_mod_changed;
+  switches[SW_PITCHMOD0].pressed_fn = pitch_mod_changed;
+  switches[SW_PITCHMOD0].released_fn = pitch_mod_changed;
+  switches[SW_PITCHMOD1].pressed_fn = pitch_mod_changed;
+  switches[SW_PITCHMOD1].released_fn = pitch_mod_changed;
   switches[SW_ECHO].pressed_fn = echo_pressed;
   switches[SW_LFOSHAPE].pressed_fn = lfo_shape_pressed;
   switches[SW_GLIDE].pressed_fn = glide_pressed;
@@ -315,7 +341,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  //note_on(69);
+  note_on(69);
   
   while (1) {
     /* read the knobs */

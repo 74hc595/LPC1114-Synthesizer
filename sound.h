@@ -32,6 +32,10 @@ typedef enum {
   SUSTAIN_REPEAT
 } sustain_mode_t;
 
+enum {
+  MOD_SRC_ENV = 1 << 0,
+  MOD_SRC_LFO = 1 << 1
+};
 
 void sound_init(void);
 
@@ -83,5 +87,13 @@ void set_lfo_rate(uint8_t val);
 /* Sets LFO shape. */
 void set_lfo_shape(lfo_shape_t shape);
 lfo_shape_t get_lfo_shape(void);
+
+/* Sets modulation sources for cutoff frequency.
+ * sources should be a combination of MOD_SRC_* constants. */
+void set_filter_cutoff_mod_sources(uint8_t sources);
+
+/* Sets modulation sources for pitch.
+ * sources should be a combination of MOD_SRC_* constants. */
+void set_pitch_mod_sources(uint8_t sources);
 
 #endif

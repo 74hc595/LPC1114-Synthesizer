@@ -126,16 +126,23 @@ static uint32_t uncorrected_q = 0;
 /* Whether the filter cutoff frequency tracks the keyboard. */
 static _Bool keyboard_tracking = false;
 
-/* Cutoff modulation strength, as a fixed point note number. */
+/* Cutoff modulation strength, in fractional semitones. */
 static int16_t cutoff_mod_amount = 0;
+
+/* Pitch modulation strength, in fractional semitones. */
+static int16_t pitch_mod_amount = 0;
 
 /* LFO state */
 static uint16_t lfo_phase = 0;
 static uint16_t lfo_freq = 0;
 static uint16_t lfo_value = 0;
 static lfo_shape_t lfo_shape = 0;
-static _Bool lfo_affects_cutoff = true;
+
+/* Moulation sources */
+static _Bool lfo_affects_cutoff = false;
 static _Bool lfo_affects_pitch = false;
+static _Bool env_affects_cutoff = false;
+static _Bool env_affects_pitch = false;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -184,6 +191,7 @@ void sound_init(void)
   cutoff_pitch = NUM_CUTOFF_ENTRIES << 9;
   uncorrected_q = 0x20000;
   filter_needs_update = true;
+  pitch_mod_amount = 12 << 9;
 }
 
 
@@ -220,6 +228,12 @@ void update_frequencies()
 {
   int i;
   uint16_t rootpitch = current_pitch + pitch_bend;
+
+  if (lfo_affects_pitch) {
+    int32_t mod_amount = lfo_value * pitch_mod_amount;
+    rootpitch += (mod_amount >> 16);
+  }
+
   for (i = 0; i < NUM_OSCILLATORS; i++) {
     uint16_t note = rootpitch + tuning_amounts[i] + detune_amounts[i];
     uint8_t basenote = note >> 9;
@@ -447,6 +461,29 @@ lfo_shape_t get_lfo_shape(void)
 {
   return lfo_shape;
 }
+
+
+void set_filter_cutoff_mod_sources(uint8_t sources)
+{
+  lfo_affects_cutoff = ((sources & MOD_SRC_LFO) != 0);
+  env_affects_cutoff = ((sources & MOD_SRC_ENV) != 0);
+  if (!lfo_affects_cutoff && !lfo_affects_pitch) {
+    lfo_value = 0;
+  }
+  filter_needs_update = true;
+}
+
+
+void set_pitch_mod_sources(uint8_t sources)
+{
+  lfo_affects_pitch = ((sources & MOD_SRC_LFO) != 0);
+  env_affects_pitch = ((sources & MOD_SRC_ENV) != 0);
+  if (!lfo_affects_cutoff && !lfo_affects_pitch) {
+    lfo_value = 0;
+  }
+  freq_needs_update = true;
+}
+
 
 
 /**
