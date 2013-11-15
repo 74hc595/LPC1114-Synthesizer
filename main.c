@@ -374,7 +374,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-//  note_on(69);
+  note_on(69);
   
   while (1) {
     /* read the knobs */

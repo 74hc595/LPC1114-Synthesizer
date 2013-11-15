@@ -5,6 +5,8 @@
 
 extern volatile uint32_t filter_cutoff;
 extern volatile uint32_t filter_q;
+extern volatile uint16_t filter_mode_control;
+extern volatile uint16_t filter_bypass_control;
 
 /**
  * Oscillator state.
@@ -122,6 +124,10 @@ static env_stage_t envelope_stage = ENV_OFF;
 /* Filter parameters prior to correction */
 static int32_t cutoff_pitch = 0; /* fixed point note number */
 static uint32_t uncorrected_q = 0;
+
+/* Cached filter mode constant; the filter mode is actually determined
+ * by the instruction pointed to by filter_mode_control */
+static filter_mode_t filter_mode = FILTER_LOWPASS;
 
 /* Whether the filter cutoff frequency tracks the keyboard. */
 static _Bool keyboard_tracking = false;
@@ -447,13 +453,36 @@ void set_filter_cutoff_mod_amount(int16_t semitones)
 
 void set_filter_mode(filter_mode_t mode)
 {
-  //!!! TODO
+  /* Mode changing is accomplished by modifying the instruction that
+   * moves one of the state-variable filter's outputs into r3. */
+  filter_mode = mode;
+  switch (mode) {
+    case FILTER_OFF:
+      /* This is fragile!! Turning off the filter injects a branch
+       * instruction with a relative offset. If the filter code in kernel.S
+       * is changed, this constant *must* be updated appropriately! */
+      filter_bypass_control = 0xe020; /* b filter_bypass */
+      return;
+    default:
+      break;
+    case FILTER_LOWPASS:
+      filter_mode_control = 0x1c0b; /* mov r3, r1 */
+      break;
+    case FILTER_HIGHPASS:
+      filter_mode_control = 0x1c1b; /* mov r3, r3 */
+      break;
+    case FILTER_BANDPASS:
+      filter_mode_control = 0x1c03; /* add r3, r1 */
+      break;
+    /* notch would be 0x185b (add r3, r1) */
+  }
+  filter_bypass_control = 0x46c0; /* nop */
 }
 
 
 filter_mode_t get_filter_mode(void)
 {
-  return 0; //!!! TODO
+  return filter_mode;
 }
 
 

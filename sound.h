@@ -36,7 +36,7 @@ typedef enum {
   FILTER_OFF,
   FILTER_LOWPASS,
   FILTER_HIGHPASS,
-  FILTER_NOTCH,
+  FILTER_BANDPASS,
   NUM_FILTER_MODES
 } filter_mode_t;
 

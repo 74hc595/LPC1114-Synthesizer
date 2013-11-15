@@ -1,6 +1,12 @@
 @ vim:noet:sw=8:ts=8:ai:syn=armasm
 
-@ Execute the SysTick handler from RAM for super speed
+@ Execute the SysTick handler from RAM for super speed!
+@ This function makes heavy (ab)use of self-modifying code;
+@ many of the instructions are changed by the C code to vary parameters
+@ without branching.
+@ DO NOT MODIFY UNLESS YOU KNOW WHAT YOU DOING!!1
+@ Changing/adding/removing instructions without changing the corresponding
+@ constants in sound.c will probably cause the CPU to lock up.
 .data
 _SysTick_Handler:
 	asr	r2, #2
@@ -22,19 +28,7 @@ osc_update_base:
 	eor	r2, r1			@ leaves junk in the lower bits but it's too insignificant to matter
 @ ----- end modifiable code
 	add	r3, r2
-
-#if 0
-	mov	r1, #0			@ volume
-@ ----- begin modifiable code
-	asr	r2, #23
-	sub	r2, #0			@ duty cycle
-	lsl	r1, #16
-	eor	r2, r1
-@ ----- end modifiable code
-	add	r3, r2
-#endif
 .endr
-
 
 @ When sawtooth wave is selected, the "modifiable code" sections
 @ will be replaced with the following instructions:
@@ -42,8 +36,10 @@ osc_update_base:
 @	nop
 @	nop
 
-
+filter_bypass_control:
+	nop				@ modifiable
 @	b	filter_bypass
+
 @ Chamberlin state-variable filter
 @ L = D2 + F1*D1
 @ H = I - L - Q1*D1
@@ -89,6 +85,7 @@ filter:
 	str	r1, [r2, #0]		@ D2 = L
 	str	r0, [r2, #8]		@ D1 = B
 @ choose an output
+filter_mode_control:
 	mov	r3, r1			@ modifiable
 
 @ Clip
@@ -161,6 +158,8 @@ dac_bits:
 .global osc_update_base
 .global filter_cutoff
 .global filter_q
+.global filter_mode_control
+.global filter_bypass_control
 .set filter_cutoff, _filter_cutoff
 
 @ make sure the thumb bit is set in the vector table
