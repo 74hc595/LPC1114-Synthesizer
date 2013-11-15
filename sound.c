@@ -74,6 +74,9 @@ typedef struct {
 /* The current pitch value, including glide but not including pitch bend. */
 static uint16_t current_pitch = 0;
 
+/* The current pitch value, including pitch bend and modulation. */
+static uint16_t current_pitch_post_mod = 0;
+
 /* The "destination" pitch; the pitch that the glide is ascending/descending toward.
  * If glide is off, this will be identical to current_pitch. */
 static uint16_t dest_pitch = 0;
@@ -130,7 +133,7 @@ static uint32_t uncorrected_q = 0;
 static filter_mode_t filter_mode = FILTER_LOWPASS;
 
 /* Whether the filter cutoff frequency tracks the keyboard. */
-static _Bool keyboard_tracking = false;
+static _Bool keyboard_tracking = true;
 
 /* Cutoff modulation strength, in fractional semitones. */
 static int16_t cutoff_mod_amount = 0;
@@ -233,15 +236,15 @@ void set_sawtooth(uint8_t oscmask)
 void update_frequencies()
 {
   int i;
-  uint16_t rootpitch = current_pitch + pitch_bend;
+  current_pitch_post_mod = current_pitch + pitch_bend;
 
   if (lfo_affects_pitch) {
     int32_t mod_amount = lfo_value * pitch_mod_amount;
-    rootpitch += (mod_amount >> 16);
+    current_pitch_post_mod += (mod_amount >> 16);
   }
 
   for (i = 0; i < NUM_OSCILLATORS; i++) {
-    uint16_t note = rootpitch + tuning_amounts[i] + detune_amounts[i];
+    uint16_t note = current_pitch_post_mod + tuning_amounts[i] + detune_amounts[i];
     uint8_t basenote = note >> 9;
     uint32_t fracnote = note & ((1 << 9)-1);
     uint32_t basefreq = notetable[basenote];
@@ -419,7 +422,7 @@ void set_sustain_mode(sustain_mode_t mode)
 
 void set_echoes(uint8_t val)
 {
-  echoes = val;
+  echoes = echoes_left = val;
 }
 
 
@@ -688,7 +691,7 @@ void TIMER32_0_IRQHandler(void)
      * Add keyboard tracking; middle C (note 60) is used as the base note. */
     int32_t cutoff = cutoff_pitch;
     if (keyboard_tracking) {
-      cutoff += current_pitch - (60 << 9);
+      cutoff += current_pitch_post_mod - (60 << 9);
     }
 
     /* Add LFO modulation */

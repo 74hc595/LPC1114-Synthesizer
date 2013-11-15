@@ -50,4 +50,7 @@
 void cpu_pll_setup(uint32_t m, uint32_t p);
 void cpu_enable_clkout(void);
 
+/* Resets the CPU. */
+void cpu_reset(void);
+
 #endif

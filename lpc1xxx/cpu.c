@@ -162,3 +162,11 @@ void cpu_enable_clkout(void)
   SCB_CLKOUTCLKUEN = 1;
   IOCON_PIO0_1 = IOCON_PIO0_1_FUNC_CLKOUT;
 }
+
+
+void cpu_reset(void)
+{
+  /* writing the magic value to the AIRCR register resets the CPU */
+  SCB_AIRCR = SCB_AIRCR_VECTKEY_VALUE | SCB_AIRCR_SYSRESETREQ;
+  while (1) {}
+} 

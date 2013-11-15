@@ -3,7 +3,9 @@
 #include <stdbool.h>
 
 /* if true, use the UART for debug output instead of MIDI */
-#define DEBUG_LOGGING 0
+#define DEBUG_LOGGING     0
+#define LOG_KNOB_VALUES   0
+#define LOG_SWITCH_EDGES  0
 
 #define NUM_KNOBS 8
 typedef struct
@@ -34,6 +36,7 @@ typedef struct
   void (*pressed_fn)(void);
   void (*released_fn)(void);
   uint8_t state;
+  int8_t debounce_count;
 } switch_t;
 static switch_t switches[NUM_SWITCHES] = {{0}};
 
@@ -71,7 +74,7 @@ static void printgraph(uint8_t x)
 
 static void update_waveform(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('w');
   outhex8(knobval);
   uart_send_byte('\n');
@@ -95,7 +98,7 @@ static void update_waveform(uint8_t knobval)
 
 static void update_detune(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('d');
   outhex8(knobval >> 6);
   uart_send_byte(',');
@@ -109,7 +112,7 @@ static void update_detune(uint8_t knobval)
 
 static void update_attack(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('a');
   outhex8(knobval);
   uart_send_byte('\n');
@@ -120,7 +123,7 @@ static void update_attack(uint8_t knobval)
 
 static void update_release(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('r');
   outhex8(knobval);
   uart_send_byte('\n');
@@ -131,7 +134,7 @@ static void update_release(uint8_t knobval)
 
 static void update_cutoff(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('c');
   outhex8(knobval);
   uart_send_byte('\n');
@@ -142,7 +145,7 @@ static void update_cutoff(uint8_t knobval)
 
 static void update_resonance(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('q');
   outhex8(knobval);
   uart_send_byte('\n');
@@ -153,7 +156,7 @@ static void update_resonance(uint8_t knobval)
 
 static void update_cutoff_mod_amount(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('c');
   uart_send_byte('m');
   outhex8(knobval);
@@ -166,7 +169,7 @@ static void update_cutoff_mod_amount(uint8_t knobval)
 
 static void update_lfo_rate(uint8_t knobval)
 {
-#if DEBUG_LOGGING
+#if LOG_KNOB_VALUES
   uart_send_byte('l');
   uart_send_byte('r');
   outhex8(knobval);
@@ -177,6 +180,7 @@ static void update_lfo_rate(uint8_t knobval)
 
 
 static _Bool shift = false;
+static _Bool echo_button_held = false;
 /* Only one programming mode can be active at a time. */
 static _Bool chord_pgm_active = false;
 static _Bool pitch_pgm_active = false;
@@ -193,13 +197,10 @@ static void env_mode_changed(void)
 
 static void echo_pressed(void)
 {
+  echo_button_held = true;
   if (shift) {
     chord_pgm_active = false;
   }
-
-  // for debugging
-  SCB_AIRCR = SCB_AIRCR_VECTKEY_VALUE | SCB_AIRCR_SYSRESETREQ;
-  while(1) {}
 
   uint8_t e = get_echoes();
   switch (e) {
@@ -209,6 +210,12 @@ static void echo_pressed(void)
     default: e = 0; break;
   }
   set_echoes(e);
+}
+
+
+static void echo_released(void)
+{
+  echo_button_held = false;
 }
 
 
@@ -342,57 +349,6 @@ static void add_note_to_input(int8_t note)
 }
 
 
-#if 0
-static volatile uint8_t chprog_active = 0;
-static uint8_t chprog_oscnum = 0;
-static int8_t chprog_notes[NUM_OSCILLATORS];
-
-static void chprog_finish(void)
-{
-  chprog_active = 0;
-  gpio1_set_pin_low(9);
-
-  /* compute all note positions relative to the first */
-  int i;
-  int8_t first_note = chprog_notes[0];
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    if (i < chprog_oscnum) {
-      chprog_notes[i] -= first_note;
-    } else {
-      chprog_notes[i] = 0;
-    }
-  }
-
-  sound_set_oscillator_tuning(chprog_notes);
-}
-
-
-static void button_pressed(void)
-{
-  /* start chord programming */
-  if (!chprog_active) {
-    chprog_oscnum = 0;
-    chprog_active = 1;
-    gpio1_set_pin_high(9);    
-  }
-  /* end chord programming */
-  else {
-    chprog_finish();
-  }
-}
-
-
-static void chprog_add_note(uint8_t note)
-{
-  chprog_notes[chprog_oscnum] = note;
-  chprog_oscnum++;
-  if (chprog_oscnum == NUM_OSCILLATORS) {
-    chprog_finish();
-  }
-}
-#endif
-
-
 int main(void)
 {
   /* FCLKIN = 25MHz
@@ -436,6 +392,7 @@ int main(void)
   switches[SW_PITCHMOD1].pressed_fn = pitch_mod_changed;
   switches[SW_PITCHMOD1].released_fn = pitch_mod_changed;
   switches[SW_ECHO].pressed_fn = echo_pressed;
+  switches[SW_ECHO].released_fn = echo_released;
   switches[SW_LFOSHAPE].pressed_fn = lfo_shape_pressed;
   switches[SW_GLIDE].pressed_fn = glide_pressed;
   switches[SW_CHORDPGM].pressed_fn = chord_pgm_pressed;
@@ -459,9 +416,22 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-//  note_on(69);
+  //note_on(69);
   
+  /* if the echo button is held long enough, we reset and enter
+   * serial programming mode */
+  uint16_t reset_hold_count = 0;
+
   while (1) {
+    if (echo_button_held) {
+      reset_hold_count++;
+      if (reset_hold_count >= 10000) {
+        cpu_reset();
+      }
+    } else {
+      reset_hold_count = 0;
+    }
+
     /* read the knobs */
     uint8_t k, i;
     for (k = 0; k < NUM_KNOBS; k++) {
@@ -496,9 +466,22 @@ int main(void)
       uint8_t state = !(input & 1);
       if (state != sw->state) {
         sw->state = state;
-        void (*handler)(void) = (state) ? sw->pressed_fn : sw->released_fn;
-        if (handler) {
-          handler();
+        sw->debounce_count = 0;
+      } else {
+        /* only call the handler after the value has been steady for
+         * a few iterations */
+        if (sw->debounce_count >= 0) {
+          sw->debounce_count++;
+          if (sw->debounce_count == 4) {
+            void (*handler)(void) = (state) ? sw->pressed_fn : sw->released_fn;
+#if LOG_SWITCH_EDGES
+            uart_send_byte((state) ? 'A'+i : 'a'+i);
+            uart_send_byte('\n');
+#endif
+            if (handler) {
+              handler();
+            }
+          }
         }
       }
     }
