@@ -79,16 +79,16 @@ static void update_waveform(uint8_t knobval)
 
   /* First half: adjust duty cycle from 0% to 50%, pulse wave on all oscillators */
   if (knobval <= 127) {
-    sound_set_duty_cycle((127-knobval)<<1, 0xF);
+    set_duty_cycle((127-knobval)<<1, 0xF);
   }
   /* Second half: pulse wave on 2 oscillators and sawtooth on the other two */
   else if (knobval < 0xFB) {
-    sound_set_duty_cycle(knobval-128, 0x3);
-    sound_set_sawtooth(0xC);
+    set_duty_cycle(knobval-128, 0x3);
+    set_sawtooth(0xC);
   }
   /* All the way to the right: sawtooth on all oscilators */
   else {
-    sound_set_sawtooth(0xF);
+    set_sawtooth(0xF);
   }
 }
 
@@ -103,7 +103,7 @@ static void update_detune(uint8_t knobval)
   uart_send_byte('\n');
 #endif
 
-  sound_set_detune(knobval >> 6, knobval & 0x3f);
+  set_detune(knobval >> 6, knobval & 0x3f);
 }
 
 
@@ -177,6 +177,13 @@ static void update_lfo_rate(uint8_t knobval)
 
 
 static _Bool shift = false;
+/* Only one programming mode can be active at a time. */
+static _Bool chord_pgm_active = false;
+static _Bool pitch_pgm_active = false;
+static uint8_t note_input_idx = 0;
+static int8_t note_inputs[NUM_OSCILLATORS];
+static uint8_t glide_preset = 0;
+
 static void env_mode_changed(void)
 {
   sustain_mode_t mode = switches[SW_ENVMODE0].state | (switches[SW_ENVMODE1].state << 1);
@@ -186,6 +193,10 @@ static void env_mode_changed(void)
 
 static void echo_pressed(void)
 {
+  if (shift) {
+    chord_pgm_active = false;
+  }
+
   // for debugging
   SCB_AIRCR = SCB_AIRCR_VECTKEY_VALUE | SCB_AIRCR_SYSRESETREQ;
   while(1) {}
@@ -208,6 +219,7 @@ static void lfo_shape_pressed(void)
     shape = (shape+1) % NUM_LFO_SHAPES;
     set_lfo_shape(shape);
   } else {
+    chord_pgm_active = false;
     filter_mode_t mode = get_filter_mode();
     mode = (mode+1) % NUM_FILTER_MODES;
     set_filter_mode(mode);
@@ -215,9 +227,12 @@ static void lfo_shape_pressed(void)
 }
 
 
-static uint8_t glide_preset = 0;
 static void glide_pressed(void)
 {
+  if (shift) {
+    chord_pgm_active = false;
+  }
+
   glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
   set_glide_preset(glide_preset);
 }
@@ -237,10 +252,41 @@ static void pitch_mod_changed(void)
 }
 
 
+static void chord_pgm_finish(void)
+{
+  /* compute all note positions relative to the first */
+  int i;
+  int8_t first_note = note_inputs[0];
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    if (i < note_input_idx) {
+      note_inputs[i] -= first_note;
+    } else {
+      note_inputs[i] = 0;
+    }
+  }
+  set_oscillator_tuning(note_inputs);
+  chord_pgm_active = false;
+}
+
+
 static void chord_pgm_pressed(void)
 {
   /* also doubles as a shift key */
   shift = true;
+
+  /* the second time the button is pressed, exit programming mode */
+  if (chord_pgm_active) {
+    chord_pgm_finish();
+    return;
+  }
+  
+  /* if the other programming mode is active, cancel it */
+  if (pitch_pgm_active) {
+    pitch_pgm_active = false;
+  }
+
+  chord_pgm_active = true;
+  note_input_idx = 0;
 }
 
 
@@ -250,15 +296,53 @@ static void chord_pgm_released(void)
 }
 
 
+static void pitch_pgm_finish(void)
+{
+  /* compute the difference between the two notes and use it
+   * as the pitch modulation amount */
+  int8_t mod_amount = note_inputs[1] - note_inputs[0];
+  set_pitch_mod_amount(mod_amount << 9);
+  pitch_pgm_active = false;
+}
+
+
 static void pitch_pgm_pressed(void)
 {
   if (!shift) {
+    /* the second time the button is pressed, exit programming mode */    
+    if (pitch_pgm_active) {
+      pitch_pgm_finish();
+      return;
+    }
+
+    /* if the other programming mode is active, cancel it */    
+    if (chord_pgm_active) {
+      chord_pgm_active = false;
+    }
+
+    pitch_pgm_active = true;
+    note_input_idx = 0;
+
   } else {
+    chord_pgm_active = false;
     set_keyboard_tracking(!get_keyboard_tracking());
   }
 }
 
 
+static void add_note_to_input(int8_t note)
+{
+  note_inputs[note_input_idx] = note;
+  note_input_idx++;
+  if (chord_pgm_active && note_input_idx == NUM_OSCILLATORS) {
+    chord_pgm_finish();
+  } else if (pitch_pgm_active && note_input_idx == 2) {
+    pitch_pgm_finish();
+  }
+}
+
+
+#if 0
 static volatile uint8_t chprog_active = 0;
 static uint8_t chprog_oscnum = 0;
 static int8_t chprog_notes[NUM_OSCILLATORS];
@@ -306,6 +390,7 @@ static void chprog_add_note(uint8_t note)
     chprog_finish();
   }
 }
+#endif
 
 
 int main(void)
@@ -374,7 +459,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  note_on(69);
+//  note_on(69);
   
   while (1) {
     /* read the knobs */
@@ -433,10 +518,10 @@ static inline void handle_midi_command(void)
       note_off(midibuf[1]);
       break;
     case 0x90:  /* note on */
-      if (!chprog_active) {
+      if (!chord_pgm_active && !pitch_pgm_active) {
         note_on(midibuf[1]);
       } else {
-        chprog_add_note(midibuf[1]);
+        add_note_to_input(midibuf[1]);
       }
       break;
     case 0xE0:  /* pitch bend */

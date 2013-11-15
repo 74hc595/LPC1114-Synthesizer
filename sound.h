@@ -47,16 +47,24 @@ enum {
 
 void sound_init(void);
 
-void sound_set_duty_cycle(uint8_t val, uint8_t oscmask);
-void sound_set_sawtooth(uint8_t oscmask);
-void sound_set_lofi_sawtooth(uint8_t oscmask);
-
-void sound_set_detune(uint8_t mode, uint8_t val);
-
-void sound_set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS]);
 
 void note_on(uint8_t notenum);
 void note_off(uint8_t notenum);
+
+/* Sets the oscillators indicated by 1-bits in oscmask to
+ * output pulse waves at the specified duty cycle. (0=50%, 255=0%) */
+void set_duty_cycle(uint8_t val, uint8_t oscmask);
+
+/* Sets the oscillators indicated by 1-bits in oscmask to
+ * output sawtooth waves. */
+void set_sawtooth(uint8_t oscmask);
+
+/* Sets oscillator fine tuning. mode indicates which oscillators
+ * are in sync, val specifies the detune amount. */
+void set_detune(uint8_t mode, uint8_t val);
+
+/* Sets coarse tuning (in fractional semitones) for each oscillator. */
+void set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS]);
 
 /* Sets pitch bend in fractional semitones (signed) */
 void set_pitch_bend(int16_t semitones);
@@ -111,5 +119,9 @@ void set_filter_cutoff_mod_sources(uint8_t sources);
 /* Sets modulation sources for pitch.
  * sources should be a combination of MOD_SRC_* constants. */
 void set_pitch_mod_sources(uint8_t sources);
+
+/* Sets pitch modulation amont, in fractional semitones.
+ * Modulation amount may be positive or negative. */
+void set_pitch_mod_amount(int16_t semitones);
 
 #endif

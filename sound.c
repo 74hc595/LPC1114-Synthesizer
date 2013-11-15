@@ -201,7 +201,7 @@ void sound_init(void)
 }
 
 
-void sound_set_duty_cycle(uint8_t val, uint8_t oscmask)
+void set_duty_cycle(uint8_t val, uint8_t oscmask)
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
@@ -219,7 +219,7 @@ void sound_set_duty_cycle(uint8_t val, uint8_t oscmask)
 }
 
 
-void sound_set_sawtooth(uint8_t oscmask)
+void set_sawtooth(uint8_t oscmask)
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
@@ -251,7 +251,7 @@ void update_frequencies()
 }  
 
 
-void sound_set_detune(uint8_t mode, uint8_t val)
+void set_detune(uint8_t mode, uint8_t val)
 {
   switch (mode) {
     case 0:
@@ -284,7 +284,7 @@ void sound_set_detune(uint8_t mode, uint8_t val)
 }
 
 
-void sound_set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS])
+void set_oscillator_tuning(int8_t note_offsets[NUM_OSCILLATORS])
 {
   int i;
   for (i = 0; i < NUM_OSCILLATORS; i++) {
@@ -517,6 +517,13 @@ lfo_shape_t get_lfo_shape(void)
 }
 
 
+void set_pitch_mod_amount(int16_t semitones)
+{
+  pitch_mod_amount = semitones;
+  freq_needs_update = true;
+}
+
+
 void set_filter_cutoff_mod_sources(uint8_t sources)
 {
   lfo_affects_cutoff = ((sources & MOD_SRC_LFO) != 0);
@@ -537,7 +544,6 @@ void set_pitch_mod_sources(uint8_t sources)
   }
   freq_needs_update = true;
 }
-
 
 
 /**
