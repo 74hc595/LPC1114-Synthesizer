@@ -445,6 +445,31 @@ void set_filter_cutoff_mod_amount(int16_t semitones)
 }
 
 
+void set_filter_mode(filter_mode_t mode)
+{
+  //!!! TODO
+}
+
+
+filter_mode_t get_filter_mode(void)
+{
+  return 0; //!!! TODO
+}
+
+
+void set_keyboard_tracking(_Bool track)
+{
+  keyboard_tracking = track;
+  filter_needs_update = true;
+}
+
+
+_Bool get_keyboard_tracking(void)
+{
+  return keyboard_tracking;
+}
+
+
 void set_lfo_rate(uint8_t val)
 {
   lfo_freq = lfofreqtable[val];

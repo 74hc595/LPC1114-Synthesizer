@@ -1,5 +1,6 @@
 #include "hardware.h"
 #include "sound.h"
+#include <stdbool.h>
 
 /* if true, use the UART for debug output instead of MIDI */
 #define DEBUG_LOGGING 0
@@ -175,6 +176,7 @@ static void update_lfo_rate(uint8_t knobval)
 }
 
 
+static _Bool shift = false;
 static void env_mode_changed(void)
 {
   sustain_mode_t mode = switches[SW_ENVMODE0].state | (switches[SW_ENVMODE1].state << 1);
@@ -201,9 +203,15 @@ static void echo_pressed(void)
 
 static void lfo_shape_pressed(void)
 {
-  lfo_shape_t shape = get_lfo_shape();
-  shape = (shape+1) % NUM_LFO_SHAPES;
-  set_lfo_shape(shape);
+  if (!shift) {
+    lfo_shape_t shape = get_lfo_shape();
+    shape = (shape+1) % NUM_LFO_SHAPES;
+    set_lfo_shape(shape);
+  } else {
+    filter_mode_t mode = get_filter_mode();
+    mode = (mode+1) % NUM_FILTER_MODES;
+    set_filter_mode(mode);
+  }
 }
 
 
@@ -226,6 +234,28 @@ static void pitch_mod_changed(void)
 {
   uint8_t val = switches[SW_PITCHMOD0].state | (switches[SW_PITCHMOD1].state << 1);
   set_pitch_mod_sources(val);
+}
+
+
+static void chord_pgm_pressed(void)
+{
+  /* also doubles as a shift key */
+  shift = true;
+}
+
+
+static void chord_pgm_released(void)
+{
+  shift = false;
+}
+
+
+static void pitch_pgm_pressed(void)
+{
+  if (!shift) {
+  } else {
+    set_keyboard_tracking(!get_keyboard_tracking());
+  }
 }
 
 
@@ -323,6 +353,9 @@ int main(void)
   switches[SW_ECHO].pressed_fn = echo_pressed;
   switches[SW_LFOSHAPE].pressed_fn = lfo_shape_pressed;
   switches[SW_GLIDE].pressed_fn = glide_pressed;
+  switches[SW_CHORDPGM].pressed_fn = chord_pgm_pressed;
+  switches[SW_CHORDPGM].released_fn = chord_pgm_released;
+  switches[SW_PITCHPGM].pressed_fn = pitch_pgm_pressed;
 
   sound_init();
   pwm_init(254);
@@ -341,7 +374,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  note_on(69);
+//  note_on(69);
   
   while (1) {
     /* read the knobs */

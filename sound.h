@@ -32,6 +32,14 @@ typedef enum {
   SUSTAIN_REPEAT
 } sustain_mode_t;
 
+typedef enum {
+  FILTER_OFF,
+  FILTER_LOWPASS,
+  FILTER_HIGHPASS,
+  FILTER_NOTCH,
+  NUM_FILTER_MODES
+} filter_mode_t;
+
 enum {
   MOD_SRC_ENV = 1 << 0,
   MOD_SRC_LFO = 1 << 1
@@ -80,6 +88,14 @@ void set_filter_resonance(uint32_t val);
 /* Sets cutoff frequency modulation amount, in fractional semitones.
  * Modulation amount may be positive or negative. */
 void set_filter_cutoff_mod_amount(int16_t semitones);
+
+/* Sets filter mode. */
+void set_filter_mode(filter_mode_t mode);
+filter_mode_t get_filter_mode(void);
+
+/* Whether filter cutoff frequency tracks the keyboard. */
+void set_keyboard_tracking(_Bool track);
+_Bool get_keyboard_tracking(void);
 
 /* Sets LFO rate. The scale is exponential. */
 void set_lfo_rate(uint8_t val);
