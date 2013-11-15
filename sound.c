@@ -46,12 +46,6 @@ typedef enum {
   ENV_REPEAT
 } env_stage_t;
 
-typedef enum {
-  SUSTAIN_ON,
-  SUSTAIN_OFF,
-  SUSTAIN_REPEAT
-} sustain_mode_t;
-
 /**
  * The synth uses last-note priority; when multiple keys are held down,
  * the one that sounds is always the most recent one pressed.
@@ -113,7 +107,7 @@ static uint16_t release = 0;
 static uint16_t envelope = 0;
 
 /* Sustain mode: off, on, or repeat. */
-static sustain_mode_t sustain_mode = SUSTAIN_ON;
+static sustain_mode_t sustain_mode = SUSTAIN_OFF;
 
 /* Number of "echoes," i.e. times the release phase repeats after the
  * normal release ends. */
@@ -364,7 +358,7 @@ void set_pitch_bend(int16_t semitones)
 }
 
 
-void set_glide(glide_t glide)
+void set_glide_preset(glide_t glide)
 {
   switch (glide) {
     case GLIDE_OFF:
@@ -394,6 +388,24 @@ void set_attack(uint8_t val)
 void set_release(uint8_t val)
 {
   release = envtable[val];
+}
+
+
+void set_sustain_mode(sustain_mode_t mode)
+{
+  sustain_mode = mode;
+}
+
+
+void set_echoes(uint8_t val)
+{
+  echoes = val;
+}
+
+
+uint8_t get_echoes(void)
+{
+  return echoes;
 }
 
 
@@ -428,6 +440,12 @@ void set_lfo_rate(uint8_t val)
 void set_lfo_shape(lfo_shape_t shape)
 {
   lfo_shape = shape;
+}
+
+
+lfo_shape_t get_lfo_shape(void)
+{
+  return lfo_shape;
 }
 
 

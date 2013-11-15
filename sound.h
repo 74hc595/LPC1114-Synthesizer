@@ -26,6 +26,13 @@ typedef enum {
   NUM_LFO_SHAPES
 } lfo_shape_t;
 
+typedef enum {
+  SUSTAIN_OFF,
+  SUSTAIN_ON,
+  SUSTAIN_REPEAT
+} sustain_mode_t;
+
+
 void sound_init(void);
 
 void sound_set_duty_cycle(uint8_t val, uint8_t oscmask);
@@ -43,7 +50,7 @@ void note_off(uint8_t notenum);
 void set_pitch_bend(int16_t semitones);
 
 /* Sets glide rate to a preset. */
-void set_glide(glide_t glide);
+void set_glide_preset(glide_t glide);
 
 /* Sets attack rate.
  * 0 is instantaneous; 128 is 1 second; 255 is 10 seconds */
@@ -51,6 +58,13 @@ void set_attack(uint8_t val);
 
 /* Sets release rate. (same as attack) */
 void set_release(uint8_t val);
+
+/* Sets sustain mode. */
+void set_sustain_mode(sustain_mode_t mode);
+
+/* Sets number of echoes. */
+void set_echoes(uint8_t val);
+uint8_t get_echoes(void);
 
 /* Sets filter cutoff to the frequency of the specified MIDI note. */
 void set_filter_cutoff(uint8_t val);
@@ -68,5 +82,6 @@ void set_lfo_rate(uint8_t val);
 
 /* Sets LFO shape. */
 void set_lfo_shape(lfo_shape_t shape);
+lfo_shape_t get_lfo_shape(void);
 
 #endif

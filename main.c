@@ -13,13 +13,26 @@ typedef struct
 static knob_t knobs[NUM_KNOBS] = {{0}};
 
 
-#define NUM_SWITCHES  11
+enum {
+  SW_GLIDE,
+  SW_CUTOFFMOD0,
+  SW_CUTOFFMOD1,
+  SW_PITCHMOD0,
+  SW_PITCHMOD1,
+  SW_ENVMODE0,
+  SW_ENVMODE1,
+  SW_LFOSHAPE,
+  SW_PITCHPGM,
+  SW_CHORDPGM,
+  SW_ECHO,
+  NUM_SWITCHES
+};
+
 typedef struct
 {
-  void (*pressed_fn)(char id);
-  void (*released_fn)(char id);
+  void (*pressed_fn)(void);
+  void (*released_fn)(void);
   uint8_t state;
-  char id;
 } switch_t;
 static switch_t switches[NUM_SWITCHES] = {{0}};
 
@@ -162,23 +175,40 @@ static void update_lfo_rate(uint8_t knobval)
 }
 
 
-static void log_button_press(char id)
+static void env_mode_changed(void)
 {
-  uart_send_byte(id);
-  uart_send_byte(' ');
-  uart_send_byte('p');
-  uart_send_byte('\n');
+  sustain_mode_t mode = switches[SW_ENVMODE0].state | (switches[SW_ENVMODE1].state << 1);
+  set_sustain_mode(mode);
 }
 
 
-static void log_button_release(char id)
+static void echo_pressed(void)
 {
-  uart_send_byte(id);
-  uart_send_byte(' ');
-  uart_send_byte('r');
-  uart_send_byte('\n');
+  uint8_t e = get_echoes();
+  switch (e) {
+    case 0: e = 1; break;
+    case 1: e = 2; break;
+    case 2: e = 3; break;
+    default: e = 0; break;
+  }
+  set_echoes(e);
 }
 
+
+static void lfo_shape_pressed(void)
+{
+  lfo_shape_t shape = get_lfo_shape();
+  shape = (shape+1) % NUM_LFO_SHAPES;
+  set_lfo_shape(shape);
+}
+
+
+static uint8_t glide_preset = 0;
+static void glide_pressed(void)
+{
+  glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
+  set_glide_preset(glide_preset);
+}
 
 
 static volatile uint8_t chprog_active = 0;
@@ -259,32 +289,21 @@ int main(void)
   knobs[6].update_fn = update_cutoff_mod_amount;
   knobs[7].update_fn = update_lfo_rate;
 
-  /* Switch mapping:
-   * 0  - glide
-   * 1  - cutoff modulation bit 0
-   * 2  - cutoff modulation bit 1
-   * 3  - pitch modulation bit 0
-   * 4  - pitch modulation bit 1
-   * 5  - envelope mode bit 0
-   * 6  - envelope mode bit 1
-   * 7  - LFO shape
-   * 8  - pitch modulation program
-   * 9  - chord program
-   * 10 - echo
-   */
-  int i;
-  for (i = 0; i < NUM_SWITCHES; i++) {
-    switches[i].id = 'A'+i;
-    switches[i].pressed_fn = log_button_press;
-    switches[i].released_fn = log_button_release;
-  }
+  /* set up the switches */
+  switches[SW_ENVMODE0].pressed_fn = env_mode_changed;
+  switches[SW_ENVMODE0].released_fn = env_mode_changed;
+  switches[SW_ENVMODE1].pressed_fn = env_mode_changed;
+  switches[SW_ENVMODE1].released_fn = env_mode_changed;
+  switches[SW_ECHO].pressed_fn = echo_pressed;
+  switches[SW_LFOSHAPE].pressed_fn = lfo_shape_pressed;
+  switches[SW_GLIDE].pressed_fn = glide_pressed;
 
   sound_init();
   pwm_init(254);
   systick_init(200);
   timer32_init(200000);
 
-#if 0//!DEBUG_LOGGING
+#if !DEBUG_LOGGING
   uart_init(BAUD(31250, 50000000));
 #else
   uart_init(BAUD(115200, 50000000));
@@ -296,11 +315,11 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  note_on(69);
+  //note_on(69);
   
   while (1) {
     /* read the knobs */
-    uint8_t k;
+    uint8_t k, i;
     for (k = 0; k < NUM_KNOBS; k++) {
       /* discard the lowest 2 bits from the ADC input to reduce noise
        * use an exponential moving average with alpha=0.25 to prevent
@@ -333,9 +352,9 @@ int main(void)
       uint8_t state = !(input & 1);
       if (state != sw->state) {
         sw->state = state;
-        void (*handler)(char) = (state) ? sw->pressed_fn : sw->released_fn;
+        void (*handler)(void) = (state) ? sw->pressed_fn : sw->released_fn;
         if (handler) {
-          handler(sw->id);
+          handler();
         }
       }
     }
@@ -360,10 +379,6 @@ static inline void handle_midi_command(void)
       } else {
         chprog_add_note(midibuf[1]);
       }
-      break;
-    case 0xC0:  /* program change */
-      /* temporary; using this to control glide amount for now */
-      set_glide(midibuf[2]);
       break;
     case 0xE0:  /* pitch bend */
     {
