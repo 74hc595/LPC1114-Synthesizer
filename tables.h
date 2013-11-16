@@ -14,3 +14,5 @@ extern const uint16_t cutofftable[NUM_CUTOFF_ENTRIES];
 /* Map from knob position to LFO rate */
 extern const uint16_t lfofreqtable[256];
 
+/* Map from knob position to modulation rate */
+extern const uint16_t modenvtable[256];

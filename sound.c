@@ -584,6 +584,18 @@ _Bool get_legato(void)
 }
 
 
+void set_mod_attack(uint8_t val)
+{
+  mod_attack = modenvtable[val];
+}
+
+
+void set_mod_release(uint8_t val)
+{
+  mod_release = modenvtable[val];
+}
+
+
 /**
  * Update envelope, LFO, and glide.
  */

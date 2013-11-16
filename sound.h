@@ -129,4 +129,11 @@ void set_pitch_mod_amount(int16_t semitones);
 void set_legato(_Bool val);
 _Bool get_legato(void);
 
+/* Sets modulation envelope attack rate.
+ * 0 is instantaneous; 255 is 1 second */
+void set_mod_attack(uint8_t val);
+
+/* Sets modulation envelope release rate. (same as attack) */
+void set_mod_release(uint8_t val);
+
 #endif

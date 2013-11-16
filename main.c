@@ -38,7 +38,7 @@ enum {
   SW_LFOSHAPE,
   SW_PITCHPGM,
   SW_CHORDPGM,
-  SW_ECHO,
+  SW_ENVSELECT,
   NUM_SWITCHES
 };
 
@@ -50,6 +50,8 @@ typedef struct
   int8_t debounce_count;
 } switch_t;
 static switch_t switches[NUM_SWITCHES] = {{0}};
+
+static _Bool mod_env_select = false;
 
 
 #if DEBUG_LOGGING
@@ -128,7 +130,11 @@ static void update_attack(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
-  set_attack(knobval);
+  if (!mod_env_select) {
+    set_attack(knobval);
+  } else {
+    set_mod_attack(knobval);
+  }
 }
 
 
@@ -139,7 +145,11 @@ static void update_release(uint8_t knobval)
   outhex8(knobval);
   uart_send_byte('\n');
 #endif
-  set_release(knobval);
+  if (!mod_env_select) {
+    set_release(knobval);
+  } else {
+    set_mod_release(knobval);
+  }
 }
 
 
@@ -191,7 +201,7 @@ static void update_lfo_rate(uint8_t knobval)
 
 
 static _Bool shift = false;
-static _Bool echo_button_held = false;
+static _Bool reset_button_held = false;
 /* Only one programming mode can be active at a time. */
 static _Bool chord_pgm_active = false;
 static _Bool pitch_pgm_active = false;
@@ -206,27 +216,32 @@ static void env_mode_changed(void)
 }
 
 
-static void echo_pressed(void)
+static void env_select_pressed(void)
 {
-  echo_button_held = true;
-  if (shift) {
-    chord_pgm_active = false;
-  }
+  /* Unshifted: select amplitude envelope or modulation envelope
+   * Shifted: select next echo mode */
+  reset_button_held = true;
 
-  uint8_t e = get_echoes();
-  switch (e) {
-    case 0: e = 1; break;
-    case 1: e = 2; break;
-    case 2: e = 3; break;
-    default: e = 0; break;
+  if (!shift) {
+    mod_env_select = !mod_env_select;
+  } else {
+    chord_pgm_active = false;
+
+    uint8_t e = get_echoes();
+    switch (e) {
+      case 0: e = 1; break;
+      case 1: e = 2; break;
+      case 2: e = 3; break;
+      default: e = 0; break;
+    }
+    set_echoes(e);
   }
-  set_echoes(e);
 }
 
 
-static void echo_released(void)
+static void env_select_released(void)
 {
-  echo_button_held = false;
+  reset_button_held = false;
 }
 
 
@@ -409,8 +424,8 @@ int main(void)
   switches[SW_PITCHMOD0].released_fn = pitch_mod_changed;
   switches[SW_PITCHMOD1].pressed_fn = pitch_mod_changed;
   switches[SW_PITCHMOD1].released_fn = pitch_mod_changed;
-  switches[SW_ECHO].pressed_fn = echo_pressed;
-  switches[SW_ECHO].released_fn = echo_released;
+  switches[SW_ENVSELECT].pressed_fn = env_select_pressed;
+  switches[SW_ENVSELECT].released_fn = env_select_released;
   switches[SW_LFOSHAPE].pressed_fn = lfo_shape_pressed;
   switches[SW_GLIDE].pressed_fn = glide_pressed;
   switches[SW_CHORDPGM].pressed_fn = chord_pgm_pressed;
@@ -441,7 +456,7 @@ int main(void)
   uint16_t reset_hold_count = 0;
 
   while (1) {
-    if (echo_button_held) {
+    if (reset_button_held) {
       reset_hold_count++;
       if (reset_hold_count >= 10000) {
         cpu_reset();
