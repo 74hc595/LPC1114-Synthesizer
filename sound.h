@@ -124,4 +124,9 @@ void set_pitch_mod_sources(uint8_t sources);
  * Modulation amount may be positive or negative. */
 void set_pitch_mod_amount(int16_t semitones);
 
+/* If true, pressing a key while another is held down will
+ * not retrigger the envelope generators and LFO. */
+void set_legato(_Bool val);
+_Bool get_legato(void);
+
 #endif

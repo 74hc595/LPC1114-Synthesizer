@@ -143,6 +143,10 @@ static int16_t cutoff_mod_amount = 0;
 /* Pitch modulation strength, in fractional semitones. */
 static int16_t pitch_mod_amount = 0;
 
+/* If true, the envelope and LFO won't be retriggered if a note is pressed
+ * while another is held down. */
+static _Bool legato = false;
+
 /* LFO state */
 static uint16_t lfo_phase = 0;
 static uint16_t lfo_freq = 0;
@@ -338,12 +342,20 @@ void note_on(uint8_t notenum)
   }
 
   /* if this is the first note being played, reset glide */
-  if (playing_notes.count == 1 || (sustain_mode == SUSTAIN_OFF)) {
+  if (playing_notes.count == 1 || sustain_mode == SUSTAIN_OFF) {
     current_pitch = dest_pitch;
-    lfo_phase = 0;
     envelope_stage = ENV_ATTACK;
+  }
+
+  /* if this is the first note being played, or legato is off,
+   * retrigger the envelopes and lfo */
+  if (!legato || playing_notes.count == 1 || sustain_mode == SUSTAIN_OFF) {
+    envelope = 0;
+    lfo_phase = 0;
+    mod_envelope = 0;
     mod_envelope_stage = ENV_ATTACK;
   }
+
   freq_needs_update = true;
 }
 
@@ -557,6 +569,18 @@ void set_pitch_mod_sources(uint8_t sources)
     lfo_value = 0;
   }
   freq_needs_update = true;
+}
+
+
+void set_legato(_Bool val)
+{
+  legato = val;
+}
+
+
+_Bool get_legato(void)
+{
+  return legato;
 }
 
 

@@ -7,7 +7,18 @@
 #define LOG_KNOB_VALUES   0
 #define LOG_SWITCH_EDGES  0
 
-#define NUM_KNOBS 8
+enum {
+  KNOB_RELEASE,
+  KNOB_DETUNE,
+  KNOB_WAVEFORM,
+  KNOB_ATTACK,
+  KNOB_CUTOFF,
+  KNOB_RESONANCE,
+  KNOB_CUTOFFMOD,
+  KNOB_LFORATE,
+  NUM_KNOBS
+};
+
 typedef struct
 {
   uint8_t value;
@@ -221,6 +232,8 @@ static void echo_released(void)
 
 static void lfo_shape_pressed(void)
 {
+  /* Unshifted: select next LFO shape
+   * Shifted: select next filter mode */
   if (!shift) {
     lfo_shape_t shape = get_lfo_shape();
     shape = (shape+1) % NUM_LFO_SHAPES;
@@ -236,12 +249,15 @@ static void lfo_shape_pressed(void)
 
 static void glide_pressed(void)
 {
-  if (shift) {
+  /* Unshifted: select next glide mode
+   * Shifted: toggle legato */
+  if (!shift) {
+    glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
+    set_glide_preset(glide_preset);
+  } else {
     chord_pgm_active = false;
+    set_legato(!get_legato());
   }
-
-  glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
-  set_glide_preset(glide_preset);
 }
 
 
@@ -315,6 +331,8 @@ static void pitch_pgm_finish(void)
 
 static void pitch_pgm_pressed(void)
 {
+  /* Unshifted: enter pitch range programming mode
+   * Shifted: toggle keyboard tracking */
   if (!shift) {
     /* the second time the button is pressed, exit programming mode */    
     if (pitch_pgm_active) {
@@ -369,14 +387,14 @@ int main(void)
   gpio1_set_pin_low(8);
 
   /* set up the knobs */
-  knobs[0].update_fn = update_release;
-  knobs[1].update_fn = update_detune;
-  knobs[2].update_fn = update_waveform;
-  knobs[3].update_fn = update_attack;
-  knobs[4].update_fn = update_cutoff;
-  knobs[5].update_fn = update_resonance;
-  knobs[6].update_fn = update_cutoff_mod_amount;
-  knobs[7].update_fn = update_lfo_rate;
+  knobs[KNOB_RELEASE].update_fn = update_release;
+  knobs[KNOB_DETUNE].update_fn = update_detune;
+  knobs[KNOB_WAVEFORM].update_fn = update_waveform;
+  knobs[KNOB_ATTACK].update_fn = update_attack;
+  knobs[KNOB_CUTOFF].update_fn = update_cutoff;
+  knobs[KNOB_RESONANCE].update_fn = update_resonance;
+  knobs[KNOB_CUTOFFMOD].update_fn = update_cutoff_mod_amount;
+  knobs[KNOB_LFORATE].update_fn = update_lfo_rate;
 
   /* set up the switches */
   switches[SW_ENVMODE0].pressed_fn = env_mode_changed;
@@ -410,7 +428,7 @@ int main(void)
   uart_init(BAUD(115200, 50000000));
 #endif
   
-  /* Allow use of PIO0_0 without resetting the CPU
+  /* Allow use of PIO0_0 as an input without resetting the CPU
    * We do this here because it seems like setting it at the
    * start of main prevents reset from working after serial programming...
    * oh well. */
