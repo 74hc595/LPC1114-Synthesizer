@@ -7,6 +7,8 @@ extern volatile uint32_t filter_cutoff;
 extern volatile uint32_t filter_q;
 extern volatile uint16_t filter_mode_control;
 extern volatile uint16_t filter_bypass_control;
+extern volatile uint16_t volume_control;
+extern volatile uint16_t silence;
 
 /**
  * Oscillator state.
@@ -327,11 +329,6 @@ void note_on(uint8_t notenum)
     int i;
     current_pitch = dest_pitch;
     lfo_phase = 0;
-    if (envelope_stage == ENV_OFF) {
-      for (i = 0; i < NUM_OSCILLATORS; i++) {
-        oscillators[i].phase = 0;
-      }
-    }
     envelope_stage = ENV_ATTACK;
   }
   freq_needs_update = true;
@@ -464,7 +461,7 @@ void set_filter_mode(filter_mode_t mode)
       /* This is fragile!! Turning off the filter injects a branch
        * instruction with a relative offset. If the filter code in kernel.S
        * is changed, this constant *must* be updated appropriately! */
-      filter_bypass_control = 0xe020; /* b filter_bypass */
+      filter_bypass_control = 0xe023; /* b filter_bypass */
       return;
     default:
       break;
@@ -629,7 +626,8 @@ void TIMER32_0_IRQHandler(void)
   }
 
   uint8_t vol = envelope >> (8+echoes-echoes_left);
-  TMR_TMR16B1MR0 = 255-vol;
+  volume_control = 0x2000|vol;
+  silence = (vol>0) ? 0x46c0 : 0xe04c;
 
   /* Update LFO */
   if (lfo_freq > 0) {

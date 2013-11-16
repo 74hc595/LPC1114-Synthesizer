@@ -9,9 +9,10 @@
 @ constants in sound.c will probably cause the CPU to lock up.
 .data
 _SysTick_Handler:
-	asr	r2, #2
 	mov	r3, #0			@ sample accumulator
 	adr	r0, osc0		@ point to first oscillator
+silence:
+	b	stop_oscillators	@ modifiable; becomes a nop when envelope != 0
 
 osc_update_base:
 @ Update all oscillators
@@ -96,8 +97,13 @@ filter_mode_control:
 	cmp	r3, r0
 	blt	clip
 
-post_clip:
-	lsr	r3, #2			@ shift down to 12-bit signed for DAC output
+apply_envelope:
+@	lsr	r3, #2			@ shift down to 12-bit signed for DAC output
+volume_control:
+	mov	r0, #255		@ modifiable
+	add	r0, #1
+	mul	r3, r0
+	lsr	r3, #10
 
 @ Send 12-bit sample in r3 to DAC
 dacout:
@@ -109,12 +115,22 @@ dacout:
 	bx	lr
 
 filter_bypass:
-	lsr	r3, #20			@ shift down to 12 bits for DAC
-	b	dacout
+	asr	r3, #18			@ shift down to 12 bits for DAC
+	b	apply_envelope
 
 clip:
 	mov	r3, r0
-	b	post_clip
+	b	apply_envelope
+
+stop_oscillators:
+	str	r3, [r0, #osc0ph-osc0]	@ zero out all phase accumulators
+	str	r3, [r0, #osc1ph-osc0]
+	str	r3, [r0, #osc2ph-osc0]
+	str	r3, [r0, #osc3ph-osc0]
+	str	r3, [r0, #filter_d2-osc0]
+	str	r3, [r0, #filter_d1-osc0]
+	b	dacout
+	
 
 .align 4
 @ oscillator states
@@ -160,6 +176,8 @@ dac_bits:
 .global filter_q
 .global filter_mode_control
 .global filter_bypass_control
+.global volume_control
+.global silence
 .set filter_cutoff, _filter_cutoff
 
 @ make sure the thumb bit is set in the vector table

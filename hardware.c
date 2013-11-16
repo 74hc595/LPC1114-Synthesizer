@@ -196,7 +196,7 @@ void pwm_init(uint16_t pulsewidth)
   TMR_TMR16B1MR3 = pulsewidth;
 
   /* Initial duty cycle */
-  TMR_TMR16B1MR0 = pulsewidth/2;
+  TMR_TMR16B1MR0 = 0;
 
   /* Reset timer when value reaches MR3 */
   TMR_TMR16B1MCR = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
