@@ -149,6 +149,12 @@ static uint16_t lfo_freq = 0;
 static uint16_t lfo_value = 0;
 static lfo_shape_t lfo_shape = 0;
 
+/* Modulation envelope state */
+static uint16_t mod_attack = 0;
+static uint16_t mod_release = 0;
+static int32_t mod_envelope = 0;
+static env_stage_t mod_envelope_stage = ENV_OFF;
+
 /* Moulation sources */
 static _Bool lfo_affects_cutoff = false;
 static _Bool lfo_affects_pitch = false;
@@ -203,6 +209,8 @@ void sound_init(void)
   uncorrected_q = 0x20000;
   filter_needs_update = true;
   pitch_mod_amount = 12 << 9;
+  mod_attack = 0xFFFF;
+  mod_release = 0x1000;
 }
 
 
@@ -242,6 +250,11 @@ void update_frequencies()
 
   if (lfo_affects_pitch) {
     int32_t mod_amount = lfo_value * pitch_mod_amount;
+    current_pitch_post_mod += (mod_amount >> 16);
+  }
+
+  if (env_affects_pitch) {
+    int32_t mod_amount = mod_envelope * pitch_mod_amount;
     current_pitch_post_mod += (mod_amount >> 16);
   }
 
@@ -324,12 +337,12 @@ void note_on(uint8_t notenum)
     current_pitch = dest_pitch;
   }
 
-  /* if this is the first note being played, reset the oscillator phases and glide */
+  /* if this is the first note being played, reset glide */
   if (playing_notes.count == 1 || (sustain_mode == SUSTAIN_OFF)) {
-    int i;
     current_pitch = dest_pitch;
     lfo_phase = 0;
     envelope_stage = ENV_ATTACK;
+    mod_envelope_stage = ENV_ATTACK;
   }
   freq_needs_update = true;
 }
@@ -358,6 +371,7 @@ void note_off(uint8_t notenum)
   if (playing_notes.count == 0) {
     if (envelope_stage != ENV_OFF) {
       envelope_stage = ENV_RELEASE;
+      mod_envelope_stage = ENV_RELEASE;
     }
   }
   /* otherwise, change pitch to the note at the end of the queue */
@@ -672,6 +686,43 @@ void TIMER32_0_IRQHandler(void)
     }
   }
 
+  /* Update modulation envelope */
+  if (env_affects_cutoff || env_affects_pitch) {
+    switch (mod_envelope_stage) {
+      case ENV_OFF:
+        mod_envelope = 0;
+        break;
+      case ENV_ATTACK:
+        mod_envelope += mod_attack;
+        if (mod_envelope >= 0xFFFF) {
+          mod_envelope = 0xFFFF;
+          mod_envelope_stage = ENV_RELEASE;
+        }
+        break;
+      case ENV_RELEASE:
+        mod_envelope -= mod_release;
+        if (mod_envelope <= 0) {
+          mod_envelope = 0;
+          mod_envelope_stage = ENV_OFF;
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (mod_envelope_stage != ENV_OFF) {
+      if (env_affects_cutoff) {
+        filter_needs_update = true;
+      }
+      if (env_affects_pitch) {
+        freq_needs_update = true;
+      }
+    }
+  } else {
+    mod_envelope_stage = ENV_OFF;
+    mod_envelope = 0;
+  }
+
   /* Update oscillator frequencies */
   if (freq_needs_update) {
     freq_needs_update = false;
@@ -695,6 +746,12 @@ void TIMER32_0_IRQHandler(void)
     /* Add LFO modulation */
     if (lfo_affects_cutoff) {
       int32_t mod_amount = lfo_value * cutoff_mod_amount;
+      cutoff += (mod_amount >> 16);
+    }
+
+    /* Add envelope modulation */
+    if (env_affects_cutoff) {
+      int32_t mod_amount = mod_envelope * cutoff_mod_amount;
       cutoff += (mod_amount >> 16);
     }
 
