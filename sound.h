@@ -86,8 +86,9 @@ void set_sustain_mode(sustain_mode_t mode);
 void set_echoes(uint8_t val);
 uint8_t get_echoes(void);
 
-/* Sets filter cutoff to the frequency of the specified MIDI note. */
-void set_filter_cutoff(uint8_t val);
+/* Sets filter cutoff to the frequency of the specified MIDI note
+ * in fractional semitones. */
+void set_filter_cutoff(int32_t semitones);
 
 /* Sets filter resonance to the given value between 0 ("infinite" resonance)
  * and 0x20000 ("no" resonance). */

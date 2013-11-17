@@ -455,10 +455,9 @@ uint8_t get_echoes(void)
 }
 
 
-void set_filter_cutoff(uint8_t val)
+void set_filter_cutoff(int32_t semitones)
 {
-  cutoff_pitch = val << 9;
-//  uncorrected_cutoff = (val < NUM_CUTOFF_ENTRIES) ? cutofftable[val] : 0xFFFF;
+  cutoff_pitch = semitones;
   filter_needs_update = true;
 }
 
