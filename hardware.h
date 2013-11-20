@@ -49,9 +49,9 @@ void uart_send_byte(uint8_t byte);
 
 
 /**
- * Sets up 32-bit timer 0 to trigger an interrupt at the given rate.
+ * Sets up the specified 32-bit timer (0 or 1) to trigger an interrupt at the given rate.
  */
-void timer32_init(uint32_t rate);
+void timer32_init(int timernum, uint32_t rate);
 
 
 /**

@@ -598,6 +598,9 @@ void set_mod_release(uint8_t val)
 /**
  * Update envelope, LFO, and glide.
  */
+static int c = 0;
+static int p = 0;
+static uint8_t leds[7] = {0, 1, 2, 3, 0, 3, 0};
 void TIMER32_0_IRQHandler(void)
 {
   /* Clear the interrupt flag */
@@ -817,5 +820,33 @@ void TIMER32_0_IRQHandler(void)
     q_fc >>= 14;
     q_fc = 0x1c000 - q_fc; /* subtract from 1.75 */
     filter_cutoff = ((fc>>1)*(q_fc>>1)) >> 14;
+  }
+
+/*  int port0anodes = 0, port1anodes = 0;
+  switch (c) {
+    case 0:
+      port0anodes = ((leds[0]>p)<<7)|((leds[1]>p)<<10);
+      port1anodes = (leds[2]>p)<<5;
+      break;
+    case 1:
+      port1anodes = (leds[3]>p)<<5;
+      break;
+    case 2:
+    default:
+      port0anodes = ((leds[4]>p)<<7)|((leds[5]>p)<<10);
+      port1anodes = (leds[6]>p)<<5;
+      break;
+  }
+
+  gpio_pins(GPIO0, (1<<7)|(1<<10)) = port0anodes;
+  gpio_pins(GPIO1, (1<<5)) = port1anodes;*/
+  gpio_pins(GPIO0, (1<<3)|(1<<4)|(1<<5)) = ~(1<<(3+c));
+  c++;
+  if (c == 3) {
+    c = 0;
+//    p++;
+//    if (p == 20) {
+//      p = 0;
+//    }
   }
 }

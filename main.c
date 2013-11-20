@@ -401,9 +401,16 @@ int main(void)
   adc_init();
   spi_init();
   
+  /* PIO0_7, PIO0_10, and PIO1_5 are the LED anodes */
+  /* PIO0_3, PIO0_4, and PIO0_5 are the LED cathodes */
   /* PIO1_8 is used to control the 4053 analog mux */
-  GPIO_GPIO1DIR |= (1<<8)|(1<<9);
+  GPIO_GPIO0DIR |= (1<<3)|(1<<4)|(1<<5)|(1<<7)|(1<<10);
+  GPIO_GPIO1DIR |= (1<<5)|(1<<8)|(1<<9);
   gpio1_set_pin_low(8);
+
+  gpio0_set_pin_high(7);
+  gpio0_set_pin_high(10);
+  gpio1_set_pin_high(5);
 
   /* set up the knobs */
   knobs[KNOB_RELEASE].update_fn = update_release;
@@ -439,7 +446,8 @@ int main(void)
   sound_init();
   pwm_init(254);
   systick_init(200);
-  timer32_init(200000);
+  timer32_init(0,200000);
+  timer32_init(1,100000);
 
 #if !DEBUG_LOGGING
   uart_init(BAUD(31250, 50000000));
@@ -599,5 +607,8 @@ void UART_IRQHandler(void)
 
 void HardFault_Handler(void)
 {
+  /* turn off all the LEDs to prevent overcurrent */
+  GPIO_GPIO0DIR = 0;
+  GPIO_GPIO1DIR = 0;
   while (1) {}
 }

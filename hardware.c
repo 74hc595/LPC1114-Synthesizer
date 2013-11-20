@@ -165,22 +165,29 @@ void uart_send_byte(uint8_t byte)
 }
 
 
-void timer32_init(uint32_t rate)
+void timer32_init(int timernum, uint32_t rate)
 {
-  /* Enable the clock for CT32B0 */
-  SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_CT32B0;
+  if (timernum == 0) {
+    /* Enable the clock for CT32B0 */
+    SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_CT32B0;
 
-  /* Set rate */
-  TMR_TMR32B0MR0 = rate;
+    /* Set rate */
+    TMR_TMR32B0MR0 = rate;
 
-  /* Configure match control register to raise an interrupt and reset on MR0 */
-  TMR_TMR32B0MCR = (TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED);
+    /* Configure match control register to raise an interrupt and reset on MR0 */
+    TMR_TMR32B0MCR = (TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED);
 
-  /* Enable the TIMER0 interrupt */
-  NVIC_EnableIRQ(TIMER_32_0_IRQn);
+    /* Enable the TIMER0 interrupt */
+    NVIC_EnableIRQ(TIMER_32_0_IRQn);
 
-  /* Start the timer */
-  TMR_TMR32B0TCR = TMR_TMR32B0TCR_COUNTERENABLE_ENABLED;
+    /* Start the timer */
+    TMR_TMR32B0TCR = TMR_TMR32B0TCR_COUNTERENABLE_ENABLED;
+  } else {
+    SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_CT32B1;
+    TMR_TMR32B1MR0 = rate;    
+    TMR_TMR32B1MCR = (TMR_TMR32B1MCR_MR0_INT_ENABLED | TMR_TMR32B1MCR_MR0_RESET_ENABLED);
+    NVIC_EnableIRQ(TIMER_32_1_IRQn);    
+  }
 }
 
 
