@@ -1,6 +1,6 @@
 OUTFILE = wave
 OBJS = kernel.o notetable.o envtable.o cutofftable.o lfofreqtable.o \
-			 modenvtable.o hardware.o sound.o main.o
+			 modenvtable.o hardware.o sound.o midi.o main.o
 
 ##########################################################################
 # User configuration and firmware specific object files	
