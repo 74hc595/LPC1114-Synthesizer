@@ -8,8 +8,8 @@ extern const uint32_t notetable[128];
 
 /* Map from MIDI note number to cutoff frequency parameter
  * Entries are 16-bit binary fractions in the range [0, 1) */
-#define NUM_CUTOFF_ENTRIES 148
-extern const uint16_t cutofftable[NUM_CUTOFF_ENTRIES];
+extern const uint16_t *cutofftable;
+extern const int num_cutoff_entries;
 
 /* Map from knob position to LFO rate */
 extern const uint16_t lfofreqtable[256];

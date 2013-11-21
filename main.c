@@ -163,7 +163,7 @@ static void update_cutoff(uint8_t knobval)
 #endif
   /* translate a value between 0 and 255 to a fractional value
    * between 0 and the maximum cutoff value */
-  int32_t val = (knobval*NUM_CUTOFF_ENTRIES) << 1;
+  int32_t val = (knobval*num_cutoff_entries) << 1;
   set_filter_cutoff(val);
 }
 

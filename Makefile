@@ -1,6 +1,7 @@
 OUTFILE = wave
-OBJS = kernel.o notetable.o envtable.o cutofftable.o lfofreqtable.o \
-			 modenvtable.o hardware.o sound.o midi.o main.o
+OBJS = kernel.o hardware.o sound.o midi.o main.o
+TABLES = notetable.c envtable.c cutofftable.c lfofreqtable.c modenvtable.c
+OBJS += $(TABLES:.c=.o)
 
 ##########################################################################
 # User configuration and firmware specific object files	
@@ -92,6 +93,9 @@ OCFLAGS = --strip-unneeded
 
 all: firmware
 
+%.c : %.py
+	./tablegen.py $<
+
 %.o : %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
@@ -113,7 +117,7 @@ firmware: $(OBJS) $(SYS_OBJS)
 	$(OBJCOPY) $(OCFLAGS) -O ihex $(OUTFILE).elf $(OUTFILE).hex
   
 clean:
-	rm -f $(OBJS) $(LD_TEMP) $(OUTFILE).elf $(OUTFILE).bin $(OUTFILE).hex
+	rm -f $(OBJS) $(TABLES) $(LD_TEMP) $(OUTFILE).elf $(OUTFILE).bin $(OUTFILE).hex
 
 flash: firmware
 	$(LPC21ISP) -control -controlswap $(OUTFILE).hex $(FTDI_DEV) 115200 $(FXTAL_KHZ)	

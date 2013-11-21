@@ -209,7 +209,7 @@ static inline void oscillator_set_sawtooth(int oscnum)
 void sound_init(void)
 {
   lfo_shape = LFO_TRIANGLE;
-  cutoff_pitch = NUM_CUTOFF_ENTRIES << 9;
+  cutoff_pitch = num_cutoff_entries << 9;
   uncorrected_q = 0x20000;
   filter_needs_update = true;
   pitch_mod_amount = 12 << 9;
@@ -796,7 +796,7 @@ void TIMER32_0_IRQHandler(void)
     uint32_t fc = 0;
     if (cutoff < 0) {
       fc = 0;
-    } else if (cutoff >= ((NUM_CUTOFF_ENTRIES-1) << 9)) {
+    } else if (cutoff >= ((num_cutoff_entries-1) << 9)) {
       fc = 0xFFFF;
     } else {
       /* Interpolate between entries in the cutoff table */
