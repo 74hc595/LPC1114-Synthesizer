@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 /* if true, use the UART for debug output instead of MIDI */
-#define DEBUG_LOGGING     1
+#define DEBUG_LOGGING     0
 #define LOG_KNOB_VALUES   0
 #define LOG_SWITCH_EDGES  0
 
@@ -230,6 +230,7 @@ static void update_lfo_rate(uint8_t knobval)
 
 static _Bool shift = false;
 static _Bool reset_button_held = false;
+static _Bool shift_button_held = false;
 /* Only one programming mode can be active at a time. */
 _Bool chord_pgm_active = false;
 _Bool pitch_pgm_active = false;
@@ -294,7 +295,7 @@ static void update_leds(void)
   if (!mod_env_select || shift) {
     col |= LED_AMPENV;
   }
-  if (glide_preset || (shift && get_legato())) {
+  if ((!shift && glide_preset) || (shift && get_legato())) {
     col |= LED_GLIDE;
   }
   ledcolumns[2] = col;
@@ -405,8 +406,8 @@ static void chord_pgm_finish(void)
 
 static void chord_pgm_pressed(void)
 {
-  /* also doubles as a shift key */
-  shift = true;
+  /* also doubles as a shift key when held */
+  shift_button_held = true;
 
   /* the second time the button is pressed, exit programming mode */
   if (chord_pgm_active) {
@@ -427,6 +428,7 @@ static void chord_pgm_pressed(void)
 
 static void chord_pgm_released(void)
 {
+  shift_button_held = false;
   shift = false;
   update_leds();
 }
@@ -560,11 +562,14 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  note_on(69);
+  //note_on(69);
   
   /* if the echo button is held long enough, we reset and enter
    * serial programming mode */
   uint16_t reset_hold_count = 0;
+
+  /* if the chord program button is held enough, it becomes a shift key */
+  uint16_t shift_hold_count = 0;
 
   while (1) {
     if (reset_button_held) {
@@ -574,6 +579,18 @@ int main(void)
       }
     } else {
       reset_hold_count = 0;
+    }
+
+    if (shift_button_held) {
+      if (shift_hold_count < 1500) {
+        shift_hold_count++;
+      } else if (shift_hold_count == 1500) {
+        chord_pgm_active = false;
+        shift = true;
+        update_leds();
+      }
+    } else {
+      shift_hold_count = 0;
     }
 
     /* read the knobs */
