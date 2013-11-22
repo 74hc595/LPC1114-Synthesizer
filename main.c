@@ -74,6 +74,13 @@ static void outhex16(uint16_t x)
 }
 
 
+static void outhex32(uint32_t x)
+{
+  outhex16(x >> 16);
+  outhex16(x & 0xFFFF);
+}
+
+
 static void printgraph(uint8_t x)
 {
   int i;
@@ -545,5 +552,14 @@ void HardFault_Handler(void)
   /* turn off all the LEDs to prevent overcurrent */
   GPIO_GPIO0DIR = 0;
   GPIO_GPIO1DIR = 0;
+
+#if DEBUG_LOGGING
+  /* print address that caused the fault */
+  uint32_t faultaddr;
+  asm("ldr %[result], [sp, #0x20]" : [result] "=r" (faultaddr));
+  outhex32(faultaddr);
+  uart_send_byte('\n');
+#endif
+
   while (1) {}
 }
