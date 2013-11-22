@@ -4,9 +4,25 @@
 #include <stdbool.h>
 
 /* if true, use the UART for debug output instead of MIDI */
-#define DEBUG_LOGGING     0
+#define DEBUG_LOGGING     1
 #define LOG_KNOB_VALUES   0
 #define LOG_SWITCH_EDGES  0
+
+/* LED pins.
+ * Bits 0-3 indicate pin number.
+ * Bit 4 indicates port number. (0 or 1) */
+#define LED_ANODE_0       7
+#define LED_ANODE_1       10
+#define LED_ANODE_2       (5|16)
+#define NUM_LED_COLUMNS   3
+#define LED_GREEN         (1<<LED_ANODE_0)
+#define LED_BLUE          (1<<LED_ANODE_1)
+#define LED_RED           (1<<LED_ANODE_2)
+#define LED_CHORDPGM      (1<<LED_ANODE_0)
+#define LED_PITCHPGM      (1<<LED_ANODE_1)
+#define LED_MODENV        (1<<LED_ANODE_2)
+#define LED_AMPENV        (1<<LED_ANODE_1)
+#define LED_GLIDE         (1<<LED_ANODE_2)
 
 enum {
   KNOB_RELEASE,
@@ -42,6 +58,7 @@ enum {
   SW_ENVSELECT,
   NUM_SWITCHES
 };
+
 
 typedef struct
 {
@@ -219,6 +236,70 @@ _Bool pitch_pgm_active = false;
 static uint8_t note_input_idx = 0;
 static int8_t note_inputs[NUM_OSCILLATORS];
 static uint8_t glide_preset = 0;
+uint32_t ledcolumns[3] = {0, 0, 0};
+
+static void update_leds(void)
+{
+  /* RGB LED is column 0 */
+  uint32_t col = 0;
+  if (!shift) {
+    switch (get_lfo_shape()) {
+      case LFO_TRIANGLE:
+        col = LED_RED;
+        break;
+      case LFO_SAWTOOTH:
+        col = LED_GREEN;
+        break;
+      case LFO_SQUARE:
+        col = LED_BLUE;
+        break;
+      case LFO_RANDOM:
+      default:
+        col = LED_RED|LED_GREEN|LED_BLUE;
+        break;
+    }
+  } else {
+    switch (get_filter_mode()) {
+      case FILTER_OFF:
+      default:
+        break;
+      case FILTER_LOWPASS:
+        col = LED_GREEN|LED_BLUE;
+        break;
+      case FILTER_HIGHPASS:
+        col = LED_RED|LED_BLUE;
+        break;
+      case FILTER_BANDPASS:
+        col = LED_RED|LED_GREEN;
+        break;
+    }
+  }
+  ledcolumns[0] = col;
+
+  /* Column 1 */
+  col = 0;
+  if (chord_pgm_active) {
+    col |= LED_CHORDPGM;
+  }
+  if (pitch_pgm_active || (shift && get_keyboard_tracking())) {
+    col |= LED_PITCHPGM;
+  }
+  if (mod_env_select || shift) {
+    col |= LED_MODENV;
+  }
+  ledcolumns[1] = col;
+
+  /* Column 2 */
+  col = 0;
+  if (!mod_env_select || shift) {
+    col |= LED_AMPENV;
+  }
+  if (glide_preset || (shift && get_legato())) {
+    col |= LED_GLIDE;
+  }
+  ledcolumns[2] = col;
+}
+
 
 static void env_mode_changed(void)
 {
@@ -247,6 +328,7 @@ static void env_select_pressed(void)
     }
     set_echoes(e);
   }
+  update_leds();
 }
 
 
@@ -270,6 +352,7 @@ static void lfo_shape_pressed(void)
     mode = (mode+1) % NUM_FILTER_MODES;
     set_filter_mode(mode);
   }
+  update_leds();
 }
 
 
@@ -284,6 +367,7 @@ static void glide_pressed(void)
     chord_pgm_active = false;
     set_legato(!get_legato());
   }
+  update_leds();
 }
 
 
@@ -315,6 +399,7 @@ static void chord_pgm_finish(void)
   }
   set_oscillator_tuning(note_inputs);
   chord_pgm_active = false;
+  update_leds();
 }
 
 
@@ -336,12 +421,14 @@ static void chord_pgm_pressed(void)
 
   chord_pgm_active = true;
   note_input_idx = 0;
+  update_leds();
 }
 
 
 static void chord_pgm_released(void)
 {
   shift = false;
+  update_leds();
 }
 
 
@@ -352,6 +439,7 @@ static void pitch_pgm_finish(void)
   int8_t mod_amount = note_inputs[1] - note_inputs[0];
   set_pitch_mod_amount(mod_amount << 9);
   pitch_pgm_active = false;
+  update_leds();
 }
 
 
@@ -378,6 +466,7 @@ static void pitch_pgm_pressed(void)
     chord_pgm_active = false;
     set_keyboard_tracking(!get_keyboard_tracking());
   }
+  update_leds();
 }
 
 
@@ -411,13 +500,17 @@ int main(void)
   /* PIO0_7, PIO0_10, and PIO1_5 are the LED anodes */
   /* PIO0_3, PIO0_4, and PIO0_5 are the LED cathodes */
   /* PIO1_8 is used to control the 4053 analog mux */
-  GPIO_GPIO0DIR |= (1<<3)|(1<<4)|(1<<5)|(1<<7)|(1<<10);
-  GPIO_GPIO1DIR |= (1<<5)|(1<<8)|(1<<9);
-  gpio1_set_pin_low(8);
+  GPIO_GPIO0DIR |= (1<<3) | (1<<4) | (1<<5) |
+    (1<<LED_ANODE_0) |
+    (1<<LED_ANODE_1) |
+    (1<<LED_ANODE_2);
 
-  gpio0_set_pin_high(7);
-  gpio0_set_pin_high(10);
-  gpio1_set_pin_high(5);
+  GPIO_GPIO1DIR |= (1<<8) | (1<<9) |
+    ((LED_ANODE_0>>4)<<(LED_ANODE_0&15)) |
+    ((LED_ANODE_1>>4)<<(LED_ANODE_1&15)) |
+    ((LED_ANODE_2>>4)<<(LED_ANODE_2&15));
+
+  gpio1_set_pin_low(8);
 
   /* set up the knobs */
   knobs[KNOB_RELEASE].update_fn = update_release;
@@ -454,7 +547,6 @@ int main(void)
   pwm_init(254);
   systick_init(200);
   timer32_init(0,200000);
-  timer32_init(1,100000);
 
 #if !DEBUG_LOGGING
   uart_init(BAUD(31250, 50000000));
@@ -468,7 +560,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  //note_on(69);
+  note_on(69);
   
   /* if the echo button is held long enough, we reset and enter
    * serial programming mode */
@@ -540,11 +632,6 @@ int main(void)
   }
   return 0;
 }
-
-
-
-/***** MIDI *****/
-
 
 
 void HardFault_Handler(void)
