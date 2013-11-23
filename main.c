@@ -238,6 +238,13 @@ static uint8_t note_input_idx = 0;
 static int8_t note_inputs[NUM_OSCILLATORS];
 static uint8_t glide_preset = 0;
 uint32_t ledcolumns[3] = {0, 0, 0};
+int16_t glide_led_blink_pattern = 0xFFFF;
+static const int16_t glide_led_blink_patterns[NUM_GLIDE_PRESETS] = {
+  0b1111111111111111,
+  0b1111111111111111,
+  0b1111111111110101,
+  0b1111111111010101
+};
 
 static void update_leds(void)
 {
@@ -295,7 +302,7 @@ static void update_leds(void)
   if (!mod_env_select || shift) {
     col |= LED_AMPENV;
   }
-  if ((!shift && glide_preset) || (shift && get_legato())) {
+  if ((!shift && glide_preset && (glide_led_blink_pattern & 1)) || (shift && get_legato())) {
     col |= LED_GLIDE;
   }
   ledcolumns[2] = col;
@@ -364,6 +371,7 @@ static void glide_pressed(void)
   if (!shift) {
     glide_preset = (glide_preset+1) % NUM_GLIDE_PRESETS;
     set_glide_preset(glide_preset);
+    glide_led_blink_pattern = glide_led_blink_patterns[glide_preset];
   } else {
     chord_pgm_active = false;
     set_legato(!get_legato());
@@ -571,6 +579,9 @@ int main(void)
   /* if the chord program button is held enough, it becomes a shift key */
   uint16_t shift_hold_count = 0;
 
+  /* for timing LED blinks */
+  uint16_t blink_count = 0;
+
   while (1) {
     if (reset_button_held) {
       reset_hold_count++;
@@ -591,6 +602,13 @@ int main(void)
       }
     } else {
       shift_hold_count = 0;
+    }
+
+    blink_count++;
+    if (blink_count == 1500 && glide_led_blink_pattern != 0xFFFF) {
+      blink_count = 0;
+      glide_led_blink_pattern >>= 1;
+      update_leds();
     }
 
     /* read the knobs */
