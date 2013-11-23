@@ -103,6 +103,18 @@ static byte_queue_t playing_notes = {0};
  * If true, frequencies will be updated on the next tick of the low-frequency timer. */
 static volatile _Bool freq_needs_update = false;
 static volatile _Bool filter_needs_update = false;
+static volatile _Bool pulse_width_needs_update = false;
+
+/* The last pulse width value that was set.
+ * pulse_width_needs_update must be set to true for this value to
+ * take effect. */
+static uint8_t pulse_width_base = 0;
+
+/* Waveforms for each oscillator.
+ * A 0 bit indicates pulse wave, a 1 bit indicates sawtooth wave.
+ * pulse_width_needs_update must be set to true for this value to
+ * take effect. */
+static uint8_t oscillator_waveforms = 0;
 
 /* Envelope attack time constant. */
 static uint16_t attack = 0;
@@ -143,6 +155,9 @@ static int16_t cutoff_mod_amount = 0;
 /* Pitch modulation strength, in fractional semitones. */
 static int16_t pitch_mod_amount = 0;
 
+/* Pulse width modulation strength */
+static int8_t pulse_width_mod_amount = 0;
+
 /* If true, the envelope and LFO won't be retriggered if a note is pressed
  * while another is held down. */
 static _Bool legato = false;
@@ -151,7 +166,7 @@ static _Bool legato = false;
 static uint16_t lfo_phase = 0;
 static uint16_t lfo_freq = 0;
 static uint16_t lfo_value = 0;
-static lfo_shape_t lfo_shape = 0;
+static lfo_shape_t lfo_shape = LFO_TRIANGLE;
 
 /* Modulation envelope state */
 static uint16_t mod_attack = 0;
@@ -162,8 +177,10 @@ static env_stage_t mod_envelope_stage = ENV_OFF;
 /* Moulation sources */
 static _Bool lfo_affects_cutoff = false;
 static _Bool lfo_affects_pitch = false;
+static _Bool lfo_affects_pulse_width = false;
 static _Bool env_affects_cutoff = false;
 static _Bool env_affects_pitch = false;
+static _Bool env_affects_pulse_width = false;
 
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
@@ -206,9 +223,23 @@ static inline void oscillator_set_sawtooth(int oscnum)
 }
 
 
+void update_oscillator_waveforms(uint8_t waveformbits, uint8_t pulse_width)
+{
+  int i;
+  for (i = 0; i < NUM_OSCILLATORS; i++) {
+    if (waveformbits & (1 << i)) { /* sawtooth */
+      if (osc_update_base[i].waveform_code[0] != 0x1092) {
+        oscillator_set_sawtooth(i);
+      }
+    } else { /* pulse */
+      oscillator_set_pulse(i, pulse_width);
+    }
+  }
+}
+
+
 void sound_init(void)
 {
-  lfo_shape = LFO_TRIANGLE;
   cutoff_pitch = num_cutoff_entries << 9;
   uncorrected_q = 0x20000;
   filter_needs_update = true;
@@ -218,32 +249,13 @@ void sound_init(void)
 }
 
 
-void set_duty_cycle(uint8_t val, uint8_t oscmask)
+void set_oscillator_waveforms(uint8_t waveformbits, uint8_t pulse_width)
 {
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    if (oscmask & (1 << i)) {
-      /* is the oscillator already in pulse mode? */
-      if (osc_update_base[i].waveform_code[0] == 0x15d2) {
-        osc_update_base[i].duty = val;
-      }
-      /* if not, switch to pulse mode */
-      else {
-        oscillator_set_pulse(i, val);
-      }
-    }
-  }
-}
-
-
-void set_sawtooth(uint8_t oscmask)
-{
-  int i;
-  for (i = 0; i < NUM_OSCILLATORS; i++) {
-    if (oscmask & (1 << i)) {
-        oscillator_set_sawtooth(i);
-    }
-  }
+  /* stash the values for now; they get propagated to the oscillators
+   * during the timer interrupt, so we don't screw with modulation */
+  oscillator_waveforms = waveformbits;
+  pulse_width_base = pulse_width;
+  pulse_width_needs_update = true;
 }
 
 
@@ -553,7 +565,7 @@ void set_filter_cutoff_mod_sources(uint8_t sources)
 {
   lfo_affects_cutoff = ((sources & MOD_SRC_LFO) != 0);
   env_affects_cutoff = ((sources & MOD_SRC_ENV) != 0);
-  if (!lfo_affects_cutoff && !lfo_affects_pitch) {
+  if (!lfo_affects_cutoff && !lfo_affects_pitch && !lfo_affects_pulse_width) {
     lfo_value = 0;
   }
   filter_needs_update = true;
@@ -564,11 +576,23 @@ void set_pitch_mod_sources(uint8_t sources)
 {
   lfo_affects_pitch = ((sources & MOD_SRC_LFO) != 0);
   env_affects_pitch = ((sources & MOD_SRC_ENV) != 0);
-  if (!lfo_affects_cutoff && !lfo_affects_pitch) {
+  if (!lfo_affects_cutoff && !lfo_affects_pitch && !lfo_affects_pulse_width) {
     lfo_value = 0;
   }
   freq_needs_update = true;
 }
+
+
+void set_pulse_width_mod_sources(uint8_t sources)
+{
+  lfo_affects_pulse_width = ((sources & MOD_SRC_LFO) != 0);
+  env_affects_pulse_width = ((sources & MOD_SRC_ENV) != 0);
+  if (!lfo_affects_cutoff && !lfo_affects_pitch && !lfo_affects_pulse_width) {
+    lfo_value = 0;
+  }
+  pulse_width_needs_update = true;
+}
+
 
 
 void set_legato(_Bool val)
@@ -592,6 +616,13 @@ void set_mod_attack(uint8_t val)
 void set_mod_release(uint8_t val)
 {
   mod_release = modenvtable[val];
+}
+
+
+void set_pulse_width_mod_amount(int8_t amount)
+{
+  pulse_width_mod_amount = amount;
+  pulse_width_needs_update = true;
 }
 
 
@@ -711,6 +742,9 @@ void TIMER32_0_IRQHandler(void)
     if (lfo_affects_pitch) {
       freq_needs_update = true;
     }
+    if (lfo_affects_pulse_width) {
+      pulse_width_needs_update = true;
+    }
   }
   /* When frequency is set to 0, reset the LFO state */
   else if (lfo_value != 0) {
@@ -722,10 +756,13 @@ void TIMER32_0_IRQHandler(void)
     if (lfo_affects_pitch) {
       freq_needs_update = true;
     }
+    if (lfo_affects_pulse_width) {
+      pulse_width_needs_update = true;
+    }
   }
 
   /* Update modulation envelope */
-  if (env_affects_cutoff || env_affects_pitch) {
+  if (env_affects_cutoff || env_affects_pitch || env_affects_pulse_width) {
     switch (mod_envelope_stage) {
       case ENV_OFF:
         mod_envelope = 0;
@@ -755,6 +792,9 @@ void TIMER32_0_IRQHandler(void)
       if (env_affects_pitch) {
         freq_needs_update = true;
       }
+      if (env_affects_pulse_width) {
+        pulse_width_needs_update = true;
+      }
     }
   } else {
     mod_envelope_stage = ENV_OFF;
@@ -768,6 +808,27 @@ void TIMER32_0_IRQHandler(void)
     if (keyboard_tracking) {
       filter_needs_update = true;
     }
+  }
+
+  /* Update oscillator waveforms and pulse width */
+  if (pulse_width_needs_update) {
+    pulse_width_needs_update = false;
+
+    uint8_t new_pulse_width = pulse_width_base;
+
+    /* Add LFO modulation */
+    if (lfo_affects_pulse_width) {
+      int32_t mod_amount = lfo_value * pulse_width_mod_amount;
+      new_pulse_width += (mod_amount >> 16);
+    }
+
+    /* Add envelope modulation */
+    if (env_affects_pulse_width) {
+      int32_t mod_amount = mod_envelope * pulse_width_mod_amount;
+      new_pulse_width += (mod_amount >> 16);
+    }
+
+    update_oscillator_waveforms(oscillator_waveforms, new_pulse_width);
   }
 
   /* Update filter parameters */

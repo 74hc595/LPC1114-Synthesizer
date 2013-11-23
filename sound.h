@@ -51,6 +51,15 @@ void sound_init(void);
 void note_on(uint8_t notenum);
 void note_off(uint8_t notenum);
 
+/* Sets the oscillator waveforms.
+ * A 0 bit in waveformbits sets the corresponding oscillator to
+ * output a pulse wave with the specified pulse width.
+ * (0=50%, 255=0%)
+ * A 1 bit in waveformbits sets the corresponding oscillator to
+ * output a sawtooth wave. */
+void set_oscillator_waveforms(uint8_t waveformbits, uint8_t pulse_width);
+
+#if 0
 /* Sets the oscillators indicated by 1-bits in oscmask to
  * output pulse waves at the specified duty cycle. (0=50%, 255=0%) */
 void set_duty_cycle(uint8_t val, uint8_t oscmask);
@@ -58,6 +67,7 @@ void set_duty_cycle(uint8_t val, uint8_t oscmask);
 /* Sets the oscillators indicated by 1-bits in oscmask to
  * output sawtooth waves. */
 void set_sawtooth(uint8_t oscmask);
+#endif
 
 /* Sets oscillator fine tuning. mode indicates which oscillators
  * are in sync, val specifies the detune amount. */
@@ -121,6 +131,10 @@ void set_filter_cutoff_mod_sources(uint8_t sources);
  * sources should be a combination of MOD_SRC_* constants. */
 void set_pitch_mod_sources(uint8_t sources);
 
+/* Sets modulation sources for pulse width.
+ * sources should be a combination of MOD_SRC_* constants. */
+void set_pulse_width_mod_sources(uint8_t sources);
+
 /* Sets pitch modulation amont, in fractional semitones.
  * Modulation amount may be positive or negative. */
 void set_pitch_mod_amount(int16_t semitones);
@@ -136,5 +150,8 @@ void set_mod_attack(uint8_t val);
 
 /* Sets modulation envelope release rate. (same as attack) */
 void set_mod_release(uint8_t val);
+
+/* Sets pulse width modulation amount. */
+void set_pulse_width_mod_amount(int8_t amount);
 
 #endif

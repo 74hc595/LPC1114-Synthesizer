@@ -120,16 +120,15 @@ static void update_waveform(uint8_t knobval)
 
   /* First half: adjust duty cycle from 0% to 50%, pulse wave on all oscillators */
   if (knobval <= 127) {
-    set_duty_cycle((127-knobval)<<1, 0xF);
+    set_oscillator_waveforms(0b0000, (127-knobval)<<1);
   }
   /* Second half: pulse wave on 2 oscillators and sawtooth on the other two */
   else if (knobval < 0xFB) {
-    set_duty_cycle(knobval-128, 0x3);
-    set_sawtooth(0xC);
+    set_oscillator_waveforms(0b0011, knobval-128);
   }
   /* All the way to the right: sawtooth on all oscilators */
   else {
-    set_sawtooth(0xF);
+    set_oscillator_waveforms(0b1111, 128);
   }
 }
 
@@ -197,7 +196,7 @@ static void update_resonance(uint8_t knobval)
 #if LOG_KNOB_VALUES
   uart_send_byte('q');
   outhex8(knobval);
-  uart_send_byte('\n');
+  uart_send_`byte('\n');
 #endif
   set_filter_resonance((0xFC-knobval) << 9);
 }
@@ -213,6 +212,7 @@ static void update_cutoff_mod_amount(uint8_t knobval)
 #endif
   int8_t bipolarval = knobval-128;
   set_filter_cutoff_mod_amount(bipolarval << 8);
+  set_pulse_width_mod_amount(bipolarval);
 }
 
 
@@ -380,10 +380,16 @@ static void glide_pressed(void)
 }
 
 
+/* If the filter is off, change the modulation settings for pulse width
+ * instead of cutoff frequency */
 static void cutoff_mod_changed(void)
 {
   uint8_t val = switches[SW_CUTOFFMOD0].state | (switches[SW_CUTOFFMOD1].state << 1);
-  set_filter_cutoff_mod_sources(val);
+  if (get_filter_mode() == FILTER_OFF) {
+    set_pulse_width_mod_sources(val);
+  } else {
+    set_filter_cutoff_mod_sources(val);
+  }
 }
 
 
