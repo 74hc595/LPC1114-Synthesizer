@@ -4,8 +4,8 @@ element_type = 'uint16_t'
 comment = 'LFO frequency values corresponding to knob positions'
 
 LFO_ACCUM_BITS = 16
-A = 0.48929
-B = 5.54311
+A = 0.195871
+B = 5.31918
 
 def generate_values():
   values = [0]

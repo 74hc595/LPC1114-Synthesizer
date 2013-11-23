@@ -582,9 +582,9 @@ int main(void)
     }
 
     if (shift_button_held) {
-      if (shift_hold_count < 1500) {
+      if (shift_hold_count < 2000) {
         shift_hold_count++;
-      } else if (shift_hold_count == 1500) {
+      } else if (shift_hold_count == 2000) {
         chord_pgm_active = false;
         shift = true;
         update_leds();
@@ -633,7 +633,7 @@ int main(void)
          * a few iterations */
         if (sw->debounce_count >= 0) {
           sw->debounce_count++;
-          if (sw->debounce_count == 4) {
+          if (sw->debounce_count == 8) {
             void (*handler)(void) = (state) ? sw->pressed_fn : sw->released_fn;
 #if LOG_SWITCH_EDGES
             uart_send_byte((state) ? 'A'+i : 'a'+i);
