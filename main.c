@@ -521,7 +521,7 @@ int main(void)
     (1<<LED_ANODE_1) |
     (1<<LED_ANODE_2);
 
-  GPIO_GPIO1DIR |= (1<<8) | (1<<9) |
+  GPIO_GPIO1DIR |= (1<<8) |
     ((LED_ANODE_0>>4)<<(LED_ANODE_0&15)) |
     ((LED_ANODE_1>>4)<<(LED_ANODE_1&15)) |
     ((LED_ANODE_2>>4)<<(LED_ANODE_2&15));
@@ -560,7 +560,6 @@ int main(void)
   switches[SW_PITCHPGM].pressed_fn = pitch_pgm_pressed;
 
   sound_init();
-  pwm_init(254);
   systick_init(200);
   timer32_init(0,200000);
 

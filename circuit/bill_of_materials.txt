@@ -1,0 +1,53 @@
+Bill of Materials
+=================
+
+U1        LP2950-3-3              3.3V low-dropout voltage regulator
+U2        74HC165                 8-bit parallel-in/serial-out shift register
+U3        MCP4921                 12-bit SPI DAC
+U4        LPC1114FN28/102         32-bit ARM Cortex-M0 microcontroller
+U5        74HC4053                Triple SPDT analog switch
+U6        6N137                   Optocoupler
+
+All resistors 1/4W 50%
+R1        330 ohm
+R2        220 ohm
+R3        8.2k ohm
+R4        4.7k ohm
+R5-R8     100 ohm
+R9        1.5k ohm
+R10       2.2k ohm
+R11,R12   100k ohm
+R13       680 ohm
+RN1       10k ohm, 10-pin bussed
+VR1-VR8   50K linear pot          RV09AF-40-20K-B50K
+                                  (Mouser 317-2090F-50K)
+
+All capacitors ceramic/monolithic unless specified
+C1        330 pF
+C2        1 uF tantalum
+C3        10 uF electrolytic
+C4        4.7 uF electrolytic
+C5,C6     18 pF
+C7        1 uF electrolytic
+C8        0.01 uF
+C9-C13    0.1 uF
+
+D1        1N4148
+X1        25MHz/18pF crystal      Mouser 520-HCU2500-18X
+
+S1        SPDT slide switch       Jameco 2133704
+S2-S6     Tactile switch
+S7        SP3T slide switch       0S103012MU2QP1
+                                  (Mouser 611-OS103012MU2QP1)
+S8,S9     DP4T slide switch       SS-24E06-TG 5 (P)
+                                  (Mouser 611-SS-24E06-TG5P)
+
+LED1      Common cathode RGB LED  WP154A4SUREQBFZGW
+                                  (Mouser 604-WP154A4SUREQBFZW)
+LED2-LED6 T1 (3mm) LED
+
+CONN1     6-pin 0.1" male header
+CONN2     DIN 5-pin female
+CONN3     1/8" stereo jack
+
+B1        3 x AA battery holder
