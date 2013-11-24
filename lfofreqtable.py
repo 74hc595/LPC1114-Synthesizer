@@ -1,3 +1,9 @@
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Generates map from knob position to LFO frequency parameter.
+
 from tablegen import *
 
 element_type = 'uint16_t'

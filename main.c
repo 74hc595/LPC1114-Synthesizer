@@ -1,3 +1,11 @@
+/**
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
+ * Initialization and user interface.
+ */
+
 #include "hardware.h"
 #include "sound.h"
 #include "tables.h"
@@ -69,12 +77,31 @@ typedef struct
 } switch_t;
 static switch_t switches[NUM_SWITCHES] = {{0}};
 
+
 static _Bool mod_env_select = false;
+static _Bool shift = false;
+static _Bool reset_button_held = false;
+static _Bool shift_button_held = false;
+/* Only one programming mode can be active at a time. */
+_Bool chord_pgm_active = false;
+_Bool pitch_pgm_active = false;
+static uint8_t note_input_idx = 0;
+static int8_t note_inputs[NUM_OSCILLATORS];
+static uint8_t glide_preset = 0;
+uint32_t ledcolumns[3] = {0, 0, 0};
+int16_t glide_led_blink_pattern = 0xFFFF;
+static const int16_t glide_led_blink_patterns[NUM_GLIDE_PRESETS] = {
+  0b1111111111111111,
+  0b1111111111111111,
+  0b1111111111110101,
+  0b1111111111010101
+};
+
 
 
 #if DEBUG_LOGGING
 /* for testing */
-static char hexchars[16] = "0123456789ABCDEF";
+static const char hexchars[16] = "0123456789ABCDEF";
 void outhex8(uint8_t x)
 {
   uart_send_byte(hexchars[x >> 4]);
@@ -95,17 +122,6 @@ static void outhex32(uint32_t x)
 {
   outhex16(x >> 16);
   outhex16(x & 0xFFFF);
-}
-
-
-static void printgraph(uint8_t x)
-{
-  int i;
-  for (i = 0; i < x; i++) {
-    uart_send_byte(' ');
-  }
-  uart_send_byte('*');
-  uart_send_byte('\n');
 }
 #endif
 
@@ -228,24 +244,6 @@ static void update_lfo_rate(uint8_t knobval)
 }
 
 
-static _Bool shift = false;
-static _Bool reset_button_held = false;
-static _Bool shift_button_held = false;
-/* Only one programming mode can be active at a time. */
-_Bool chord_pgm_active = false;
-_Bool pitch_pgm_active = false;
-static uint8_t note_input_idx = 0;
-static int8_t note_inputs[NUM_OSCILLATORS];
-static uint8_t glide_preset = 0;
-uint32_t ledcolumns[3] = {0, 0, 0};
-int16_t glide_led_blink_pattern = 0xFFFF;
-static const int16_t glide_led_blink_patterns[NUM_GLIDE_PRESETS] = {
-  0b1111111111111111,
-  0b1111111111111111,
-  0b1111111111110101,
-  0b1111111111010101
-};
-
 static void update_leds(void)
 {
   /* RGB LED is column 0 */
@@ -318,24 +316,8 @@ static void env_mode_changed(void)
 
 static void env_select_pressed(void)
 {
-  /* Unshifted: select amplitude envelope or modulation envelope
-   * Shifted: select next echo mode */
   reset_button_held = true;
-
-  if (!shift) {
-    mod_env_select = !mod_env_select;
-  } else {
-    chord_pgm_active = false;
-
-    uint8_t e = get_echoes();
-    switch (e) {
-      case 0: e = 1; break;
-      case 1: e = 2; break;
-      case 2: e = 3; break;
-      default: e = 0; break;
-    }
-    set_echoes(e);
-  }
+  mod_env_select = !mod_env_select;
   update_leds();
 }
 
@@ -509,7 +491,6 @@ int main(void)
   /* Enable pullup resistor on PIO0_1 */
   IOCON_PIO0_1 = IOCON_PIO0_1_MODE_PULLUP;
 
-  //cpu_enable_clkout();
   adc_init();
   spi_init();
   
@@ -575,9 +556,7 @@ int main(void)
    * oh well. */
   IOCON_nRESET_PIO0_0 = IOCON_nRESET_PIO0_0_FUNC_GPIO;
 
-  //note_on(69);
-  
-  /* if the echo button is held long enough, we reset and enter
+  /* if the envelope select button is held long enough, we reset and enter
    * serial programming mode */
   uint16_t reset_hold_count = 0;
 

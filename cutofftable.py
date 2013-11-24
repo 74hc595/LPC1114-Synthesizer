@@ -1,3 +1,10 @@
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Generates map from MIDI note number to cutoff frequency parameter.
+# Output values are 16-bit binary fractions in the range [0, 1)
+
 from tablegen import *
 
 element_type = 'uint16_t'

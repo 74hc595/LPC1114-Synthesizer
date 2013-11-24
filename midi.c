@@ -1,3 +1,11 @@
+/**
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
+ * MIDI input.
+ */
+
 #include "sound.h"
 #include "hardware.h"
 

@@ -1,7 +1,10 @@
 /**
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
  * Sound parameter control functions.
  */
-
 
 #ifndef _SOUND_H_
 #define _SOUND_H_

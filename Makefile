@@ -1,4 +1,26 @@
-OUTFILE = wave
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Based on the Makefile from the Microbuilder LPC1114 codebase:
+# http://www.microbuilder.eu/Projects/LPC1114ReferenceDesign/LPC1114CodeBase.aspx
+# Uses lpc21isp version 1.92 for device programming over FTDI USB-to-serial
+# cable: https://github.com/capiman/lpc21isp
+#
+# The environment variable $FTDI_DEV must be set to your serial cable's device
+# name. (e.g. /dev/cu.usbserial-A400fYRW)
+#
+# Type "make" to build.
+# Type "make flash" to program the device. The device must be in programming
+# mode; this can be accomplished by powering it on while pressing the
+# "env select" button, or holding the "env select" button for a couple seconds
+# while already running.
+# Press the "chord pgm." button to restart after programming is finished.
+#
+# Programming will not work if a MIDI cable is connected.
+# MAKE SURE THE MIDI CABLE IS DISCONNECTED BEFORE AND DURING PROGRAMMING.
+
+OUTFILE = synth
 OBJS = kernel.o hardware.o sound.o midi.o main.o
 TABLES = notetable.c envtable.c cutofftable.c lfofreqtable.c modenvtable.c
 OBJS += $(TABLES:.c=.o)
@@ -11,7 +33,7 @@ OBJS += $(TABLES:.c=.o)
 # Use for the target the value: LPC11xx, LPC13xx or LPC17xx
 TARGET = LPC11xx
 FLASH = 32K
-SRAM = 8K
+SRAM = 4K
 
 # crystal frequency in kHz
 FXTAL_KHZ = 25000
@@ -35,12 +57,6 @@ DEBUGBUILD = FALSE
 ##########################################################################
 VPATH += lpc1xxx
 OBJS += cpu.o systick.o
-#VPATH += core core/adc core/cmd core/cpu core/gpio core/i2c core/pmu
-#VPATH += core/ssp core/systick core/timer16 core/timer32 core/uart
-#VPATH += core/libc core/wdt core/pwm core/iap
-#OBJS += adc.o cpu.o cmd.o gpio.o i2c.o pmu.o ssp.o systick.o timer16.o
-#OBJS += timer32.o uart.o uart_buf.o stdio.o string.o wdt.o sysinit.o
-#OBJS += pwm.o iap.o
 
 ##########################################################################
 # GNU GCC compiler prefix and location

@@ -1,3 +1,9 @@
+/**
+ * LPC1114 GPIO convenience macros
+ * Matt Sarnoff (msarnoff.org)
+ * October 31, 2013
+ */
+
 #ifndef _GPIO_H_
 #define _GPIO_H_
 

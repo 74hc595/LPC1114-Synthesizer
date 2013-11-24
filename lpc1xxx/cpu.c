@@ -5,28 +5,6 @@
     @date     22 March 2010
     @version  0.10
 
-    @section DESCRIPTION
-
-    Initialises the CPU and any core clocks.  By default, the core clock
-    is set to run at 12MHz.  In order to reduce power consumption all pins
-    are set to GPIO and input by cpuInit.
-
-    @section EXAMPLE
-    @code
-    #include "lpc111x.h"
-    #include "core/cpu/cpu.h"
-
-    int main (void)
-    {
-      // Initialise the CPU and setup the PLL
-      cpuInit();
-      
-      while(1)
-      {
-      }
-    }
-    @endcode 
-    
     @section LICENSE
 
     Software License Agreement (BSD License)
@@ -55,21 +33,15 @@
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Modified by Matt Sarnoff (msarnoff.org)
+    September 24, 2013
 */
 /**************************************************************************/
 
 #include "cpu.h"
 
-/**************************************************************************/
-/*! 
-    @brief Configures the PLL and main system clock
 
-    The speed at which the MCU operates is set here using the SCB_PLLCTRL
-    register, and the SCB_PLLCLKSEL register can be used to select which
-    oscillator to use to generate the system clocks (the internal 12MHz
-    oscillator or an external crystal).
-*/
-/**************************************************************************/
 void cpu_pll_setup(uint32_t m, uint32_t p)
 {
   uint32_t i;
@@ -94,36 +66,6 @@ void cpu_pll_setup(uint32_t m, uint32_t p)
   // Wait until the clock is updated
   while (!(SCB_PLLCLKUEN & SCB_PLLCLKUEN_UPDATE));
 
-  /*
-  // Set clock speed
-  switch (multiplier)
-  {
-    // Fclkout = M * Fclkin = FCCO / (2 * P)
-    // FCCO should be in the range of 156-320MHz 
-    // (see Table 44 of the LPC1114 usermanual for examples)
-    case CPU_MULTIPLIER_2:
-      // Fclkout = 24.0MHz
-      // FCCO = 2 * 4 * 24 = 192MHz
-      SCB_PLLCTRL = (SCB_PLLCTRL_MSEL_2 | SCB_PLLCTRL_PSEL_4);
-      break;
-    case CPU_MULTIPLIER_3:
-      // Fclkout = 36.0MHz
-      // FCCO = 2 * 4 * 36 = 288MHz
-      SCB_PLLCTRL = (SCB_PLLCTRL_MSEL_3 | SCB_PLLCTRL_PSEL_4);
-      break;
-    case CPU_MULTIPLIER_4:
-      // Fclkout = 48.0MHz
-      // FCCO = 2 * 2 * 48 = 192MHz
-      SCB_PLLCTRL = (SCB_PLLCTRL_MSEL_4 | SCB_PLLCTRL_PSEL_2);
-      break;
-    case CPU_MULTIPLIER_1:
-    default:
-      // Fclkout = 12.0MHz
-      // FCCO = 2 * 8 * 12 = 192MHz
-      SCB_PLLCTRL = (SCB_PLLCTRL_MSEL_1 | SCB_PLLCTRL_PSEL_8);
-      break;
-  }
-  */
   SCB_PLLCTRL = m|p;
 
   // Enable system PLL
@@ -149,11 +91,7 @@ void cpu_pll_setup(uint32_t m, uint32_t p)
 }
 
 
-/**************************************************************************/
-/*! 
-    @brief Enables main clock output on PIO0_1.
-*/
-/**************************************************************************/
+/* Enables main clock output on PIO0_1. */
 void cpu_enable_clkout(void)
 {
   SCB_CLKOUTCLKSEL = 3;

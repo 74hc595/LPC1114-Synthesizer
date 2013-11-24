@@ -1,5 +1,9 @@
 /**
- * Hardware-related subroutines
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
+ * Hardware-related subroutines.
  */
 
 #include "hardware.h"
@@ -86,16 +90,12 @@ void spi_init(void)
   SCB_SYSAHBCLKCTRL |= (SCB_SYSAHBCLKCTRL_SSP0);
 
   /* Set P0.8 to SSP MISO */
-//  IOCON_PIO0_8 &= ~IOCON_PIO0_8_FUNC_MASK;
   IOCON_PIO0_8 = IOCON_PIO0_8_FUNC_MISO0;
 
   /* Set P0.9 to SSP MOSI */
-//  IOCON_PIO0_9 &= ~IOCON_PIO0_9_FUNC_MASK;
   IOCON_PIO0_9 = IOCON_PIO0_9_FUNC_MOSI0;
 
-  /* Set P0.10 to SSP SCK */
-//  IOCON_SCKLOC = IOCON_SCKLOC_SCKPIN_PIO0_10;
-//  IOCON_JTAG_TCK_PIO0_10 = IOCON_JTAG_TCK_PIO0_10_FUNC_SCK;
+  /* Set P0.16 to SSP SCK */
   IOCON_SCKLOC = IOCON_SCKLOC_SCKPIN_PIO0_6;
   IOCON_PIO0_6 = IOCON_PIO0_6_FUNC_SCK;
 

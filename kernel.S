@@ -1,6 +1,11 @@
 @ vim:noet:sw=8:ts=8:ai:syn=armasm
 
-@ Execute the SysTick handler from RAM for super speed!
+@ LPC1114 Synthesizer
+@ Matt Sarnoff (msarnoff.org)
+@ November 24, 2013
+@
+@ Sound generation kernel.
+@ The SysTick handler is executed from RAM for super speed!
 @ This function makes heavy (ab)use of self-modifying code;
 @ many of the instructions are changed by the C code to vary parameters
 @ without branching.
@@ -98,7 +103,6 @@ filter_mode_control:
 	blt	clip
 
 apply_envelope:
-@	lsr	r3, #2			@ shift down to 12-bit signed for DAC output
 volume_control:
 	mov	r0, #255		@ modifiable
 	add	r0, #1

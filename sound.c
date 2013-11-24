@@ -1,3 +1,11 @@
+/**
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
+ * Sound parameter control functions.
+ */
+
 #include "sound.h"
 #include "hardware.h"
 #include "tables.h"
@@ -185,8 +193,6 @@ static _Bool env_affects_pulse_width = false;
 extern volatile oscillator_state_t oscillators[4];
 extern volatile oscillator_control_t osc_update_base[4];
 
-
-#define TEST_FREQ 2000000
 
 /**
  * Generates a pseudorandom 8-bit value.

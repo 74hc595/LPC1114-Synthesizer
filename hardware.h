@@ -1,5 +1,9 @@
 /**
- * Hardware-related subroutines
+ * LPC1114 Synthesizer
+ * Matt Sarnoff (msarnoff.org)
+ * November 24, 2013
+ *
+ * Hardware-related subroutines.
  */
 
 #ifndef _HARDWARE_H_

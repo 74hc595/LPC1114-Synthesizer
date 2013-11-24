@@ -5,31 +5,6 @@
     @date     22 March 2010
     @version  0.10
 
-    @section DESCRIPTION
-
-    Controls the 24-bit 'system tick' clock, which can be used as a
-    generic timer or to control time sharing with an embedded real-time
-    operating system (such as FreeRTOS).
-
-    @section Example
-
-    @code 
-    #include "core/cpu/cpu.h"
-    #include "core/systick/systick.h"
-
-    void main (void)
-    {
-      cpuInit();
-
-      // Start systick timer with one tick every 10ms
-      systickInit(10);
-
-      while(1)
-      {
-      }
-    }
-    @endcode
-
     @section LICENSE
 
     Software License Agreement (BSD License)
@@ -58,29 +33,14 @@
     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Modified by Matt Sarnoff (msarnoff.org)
+    September 24, 2013
 */
 /**************************************************************************/
 
 #include "systick.h"
 
-/**************************************************************************/
-/*! 
-    @brief      Initialises the systick timer
-
-    @param[in]  delayMs
-                The number of milliseconds between each tick of the systick
-                timer.
-                  
-    @note       The shortest possible delay is 1 millisecond, which will 
-                allow fine grained delays, but will cause more load on the
-                system than a 10mS delay.  The resolution of the systick
-                timer needs to be balanced with the amount of processing
-                time you can spare.  The delay should really only be set
-                to 1 mS if you genuinely have a need for 1mS delays,
-                otherwise a higher value like 5 or 10 mS is probably
-                more appropriate.
-*/
-/**************************************************************************/
 void systick_init(uint32_t ticks)
 {
   // Set reload register

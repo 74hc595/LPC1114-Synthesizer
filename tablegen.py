@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+#
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Generates lookup tables (as C source code) from Python code.
+# Usage: tablegen.py <generator> [outputfile]
 
 import math
 import re

@@ -1,3 +1,9 @@
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Generates map from MIDI note number to frequency parameter.
+
 from tablegen import *
 
 FREQ_ACCUM_BITS = 32

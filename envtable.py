@@ -1,3 +1,11 @@
+# LPC1114 Synthesizer
+# Matt Sarnoff (msarnoff.org)
+# November 24, 2013
+#
+# Generates map from knob position to envelope rate.
+# Amplitude envelope is exponential; the output values are coefficients
+# that control the rise/fall time.
+
 from tablegen import *
 
 ALPHA_BITS = 15 # not to be confused with the cereal
