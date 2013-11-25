@@ -3,6 +3,10 @@ LPC1114 Synthesizer
 
 ![](http://farm4.staticflickr.com/3831/11042374936_e6a76aa30f.jpg)
 
+Overview video: [http://youtu.be/DU8IyjyjDfk](http://youtu.be/DU8IyjyjDfk)
+
+Demonstration video: [http://youtu.be/o-3MleRX-aE](http://youtu.be/o-3MleRX-aE)
+
 This is a digital monophonic synthesizer built using the [NXP LPC1114FN28](http://www.nxp.com/products/microcontrollers/cortex_m0_m0/LPC1114FN28.html), a 32-bit ARM Cortex-M0 microcontroller in a breadboardable DIP-28 package. Features include:
 
 - 4 oscillators; sawtooth or pulse with adjustable duty cycle with coarse and fine tuning
